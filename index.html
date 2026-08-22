@@ -28,7 +28,7 @@
         .search-bar { background-color: #202024; border: 1px solid #323238; padding: 15px; border-radius: 8px; width: 100%; color: white; margin-bottom: 30px; }
         .section-title { font-size: 1.2em; border-bottom: 2px solid #323238; padding-bottom: 10px; margin-bottom: 20px; color: #e1e1e6; }
         
-        .grid-produtos { display: flex; flex-wrap: wrap; gap: 20px; padding-bottom: 40px; }
+        .grid-produtos { display: flex; flex-wrap: wrap; gap: 20px; padding-bottom: 20px; }
         .card { background-color: #202024; border: 1px solid #323238; border-radius: 8px; padding: 15px; width: 240px; text-align: center; display: flex; flex-direction: column; justify-content: space-between; }
         .card:hover { border-color: #00e5ff; }
         .card-img-container { height: 140px; background-color: #121214; border-radius: 5px; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 10px; }
@@ -43,6 +43,13 @@
         .btn-desejo:hover { background-color: #00e5ff; color: #121214; }
         .btn-remover { background-color: #323238; border: none; color: #ff5555; padding: 6px; border-radius: 5px; font-size: 0.8em; cursor: pointer; }
         .btn-remover:hover { background-color: #ff5555; color: white; }
+
+        /* Estilização da Paginação */
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 15px; padding: 30px 0; }
+        .page-btn { background-color: #202024; border: 1px solid #323238; color: #00e5ff; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .page-btn:hover:not(:disabled) { background-color: #00e5ff; color: #121214; }
+        .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        #page-info { color: #c4c4cc; font-size: 0.9em; }
     </style>
 </head>
 <body>
@@ -75,8 +82,16 @@
     <main class="main-content">
         <input type="text" class="search-bar" placeholder="Ex: Notebook Avell, Monitor Dell, Placa de Vídeo...">
         <h2 class="section-title" id="titulo-secao">Recomendações em Destaque</h2>
+        
         <div class="grid-produtos" id="grid-produtos">
             <p style="color: #7c7c8a;">Carregando produtos...</p>
+        </div>
+
+        <!-- Controles de Paginação -->
+        <div class="pagination" id="pagination-controls" style="display: none;">
+            <button class="page-btn" id="btn-anterior" onclick="mudarPagina(-1)">← Anterior</button>
+            <span id="page-info">Página 1 de 1</span>
+            <button class="page-btn" id="btn-proxima" onclick="mudarPagina(1)">Próxima →</button>
         </div>
     </main>
 
@@ -84,14 +99,23 @@
         const API_URL = 'https://comparador-precos-ovyp.onrender.com';
         let listaGlobalProdutos = [];
         let modoDesejosAtivo = false;
+        
+        // Configurações de paginação
+        let paginaAtual = 1;
+        const itensPorPagina = 16; // Mostra 16 produtos por vez
 
         async function carregarProdutos() {
             modoDesejosAtivo = false;
+            paginaAtual = 1;
             document.getElementById('titulo-secao').innerText = 'Recomendações em Destaque';
             try {
                 const resposta = await fetch(`${API_URL}/api/produtos`);
-                listaGlobalProdutos = await resposta.json();
-                renderizarCards(listaGlobalProdutos);
+                const dadosBrutos = await resposta.json();
+                
+                // Filtra apenas produtos válidos
+                listaGlobalProdutos = dadosBrutos.filter(p => p.nome && p.nome !== "Sem Nome" && p.nome !== "Produto Sem Nome" && parseFloat(p.preco) > 0);
+                
+                renderizarPagina();
             } catch (erro) { console.error(erro); }
         }
 
@@ -164,7 +188,7 @@
             if(!desejos.includes(String(produtoId))) {
                 desejos.push(String(produtoId));
                 localStorage.setItem('desejos_' + usuarioId, JSON.stringify(desejos));
-                renderizarCards(listaGlobalProdutos);
+                renderizarPagina();
             }
         }
 
@@ -177,7 +201,7 @@
             if (modoDesejosAtivo) {
                 carregarDesejos();
             } else {
-                renderizarCards(listaGlobalProdutos);
+                renderizarPagina();
             }
         }
 
@@ -186,26 +210,48 @@
             if(!usuarioId) return alert('Faça login primeiro para ver sua lista.');
             
             modoDesejosAtivo = true;
+            paginaAtual = 1;
             document.getElementById('titulo-secao').innerText = 'Sua Lista de Desejos';
             
             const idsDesejos = JSON.parse(localStorage.getItem('desejos_' + usuarioId) || '[]');
-            const produtosFiltrados = listaGlobalProdutos.filter(p => idsDesejos.includes(String(p.id)));
+            listaGlobalProdutos = listaGlobalProdutos.filter(p => idsDesejos.includes(String(p.id)));
             
-            renderizarCards(produtosFiltrados);
+            renderizarPagina();
         }
 
-        function renderizarCards(produtos) {
+        function mudarPagina(direcao) {
+            const totalPaginas = Math.ceil(listaGlobalProdutos.length / itensPorPagina);
+            paginaAtual += direcao;
+            if (paginaAtual < 1) paginaAtual = 1;
+            if (paginaAtual > totalPaginas) paginaAtual = totalPaginas;
+            renderizarPagina();
+            document.querySelector('.main-content').scrollTop = 0; // Rola para o topo ao mudar de página
+        }
+
+        function renderizarPagina() {
             const container = document.getElementById('grid-produtos');
+            const pagControls = document.getElementById('pagination-controls');
             container.innerHTML = ''; 
-            if (!produtos || produtos.length === 0) {
+
+            if (!listaGlobalProdutos || listaGlobalProdutos.length === 0) {
                 container.innerHTML = '<p style="color: #7c7c8a;">Nenhum produto encontrado.</p>';
+                pagControls.style.display = 'none';
                 return;
             }
+
+            pagControls.style.display = 'flex';
+            const totalPaginas = Math.ceil(listaGlobalProdutos.length / itensPorPagina);
+            if (paginaAtual > totalPaginas) paginaAtual = totalPaginas;
+
+            // Fatiar apenas os produtos da página atual
+            const inicio = (paginaAtual - 1) * itensPorPagina;
+            const fim = inicio + itensPorPagina;
+            const produtosDaPagina = listaGlobalProdutos.slice(inicio, fim);
 
             const usuarioId = localStorage.getItem('usuarioId');
             const desejos = JSON.parse(localStorage.getItem('desejos_' + usuarioId) || '[]');
 
-            produtos.forEach(produto => {
+            produtosDaPagina.forEach(produto => {
                 const card = document.createElement('div');
                 card.className = 'card';
                 
@@ -244,6 +290,11 @@
                 `;
                 container.appendChild(card);
             });
+
+            // Atualizar textos dos botões de paginação
+            document.getElementById('page-info').innerText = `Página ${paginaAtual} de ${totalPaginas || 1}`;
+            document.getElementById('btn-anterior').disabled = paginaAtual === 1;
+            document.getElementById('btn-proxima').disabled = paginaAtual === totalPaginas || totalPaginas === 0;
         }
 
         atualizarEstadoLogin();
