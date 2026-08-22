@@ -157,7 +157,10 @@
 
         async function adicionarDesejo(produtoId) {
             const usuarioId = localStorage.getItem('usuarioId');
-            if(!usuarioId) return alert('Faça login para salvar!');
+            if(!usuarioId) {
+                alert('Você precisa fazer login para salvar itens na Lista de Desejos!');
+                return;
+            }
             try {
                 const resposta = await fetch(`${API_URL}/api/desejos`, {
                     method: 'POST',
@@ -165,8 +168,15 @@
                     body: JSON.stringify({ usuarioId, produtoId })
                 });
                 const dados = await resposta.json();
-                if(dados.sucesso) alert('Adicionado aos Desejos!');
-            } catch(e) { alert('Erro ao salvar.'); }
+                if(dados.sucesso) {
+                    alert('Produto adicionado à sua Lista de Desejos!');
+                } else {
+                    alert('Erro ao salvar: ' + (dados.erro || 'desconhecido'));
+                }
+            } catch(e) { 
+                console.error(e);
+                alert('Erro de conexão ao adicionar aos desejos.'); 
+            }
         }
 
         async function removerDesejo(produtoId) {
@@ -179,13 +189,18 @@
                 if(dados.sucesso) {
                     alert('Removido dos Desejos!');
                     carregarDesejos();
+                } else {
+                    alert('Erro ao remover.');
                 }
-            } catch(e) { alert('Erro ao remover.'); }
+            } catch(e) { alert('Erro de conexão ao remover.'); }
         }
 
         async function carregarDesejos() {
             const usuarioId = localStorage.getItem('usuarioId');
-            if(!usuarioId) return alert('Faça login para ver sua lista.');
+            if(!usuarioId) {
+                alert('Faça login primeiro para ver sua lista.');
+                return;
+            }
             
             modoDesejosAtivo = true;
             document.getElementById('titulo-secao').innerText = 'Sua Lista de Desejos';
@@ -208,11 +223,11 @@
                 card.className = 'card';
                 
                 let botaoAcaoHTML = `
-                    <button class="btn-desejo" onclick="adicionarDesejo(${produto.id})">❤️ Adicionar aos Desejos</button>
+                    <button class="btn-desejo" onclick="adicionarDesejo('${produto.id}')">❤️ Adicionar aos Desejos</button>
                 `;
                 if (modoDesejosAtivo) {
                     botaoAcaoHTML = `
-                        <button class="btn-remover" onclick="removerDesejo(${produto.id})">🗑️ Remover dos Desejos</button>
+                        <button class="btn-remover" onclick="removerDesejo('${produto.id}')">🗑️ Remover dos Desejos</button>
                     `;
                 }
 
