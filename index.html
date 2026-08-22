@@ -36,7 +36,7 @@
         .card { background-color: #202024; border: 1px solid #323238; border-radius: 8px; padding: 15px; width: 240px; text-align: center; display: flex; flex-direction: column; justify-content: space-between; position: relative; }
         .card:hover { border-color: #00e5ff; }
         
-        /* Retângulo Roxo "Oferta" na Imagem */
+        /* Retângulo Roxo condicional */
         .badge-oferta { position: absolute; top: 22px; right: 22px; background-color: #8257e5; color: white; font-size: 0.7em; font-weight: bold; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; z-index: 2; letter-spacing: 0.5px; }
 
         .card-img-container { height: 140px; background-color: #121214; border-radius: 5px; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 10px; position: relative; }
@@ -352,6 +352,15 @@
                     }
                 }
 
+                // Condição inteligente: exibe o selo de oferta apenas para produtos promocionais (ex: preço abaixo de R$ 150)
+                const precoNum = parseFloat(produto.preco || 0);
+                const estaEmOferta = precoNum > 0 && precoNum < 150; 
+
+                let badgeOfertaHTML = '';
+                if (estaEmOferta) {
+                    badgeOfertaHTML = `<span class="badge-oferta">Oferta</span>`;
+                }
+
                 const placeholderImg = 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/No-Image-Placeholder.svg/330px-No-Image-Placeholder.svg.png';
                 const imagemSrc = produto.imagem_url && produto.imagem_url.trim() !== '' && !produto.imagem_url.includes('Placeholder')
                     ? produto.imagem_url 
@@ -360,11 +369,11 @@
                 card.innerHTML = `
                     <div>
                         <div class="card-img-container">
-                            <span class="badge-oferta">Oferta</span>
+                            ${badgeOfertaHTML}
                             <img src="${imagemSrc}" alt="${produto.nome || 'Produto'}" onerror="this.src='${placeholderImg}';">
                         </div>
                         <h3 class="card-title" title="${produto.nome}">${produto.nome || 'Produto sem nome'}</h3>
-                        <p class="card-price">R$ ${parseFloat(produto.preco || 0).toFixed(2)}</p>
+                        <p class="card-price">R$ ${precoNum.toFixed(2)}</p>
                         <p class="card-vendor">Vendido por: <strong>${produto.origem || 'Desconhecida'}</strong></p>
                     </div>
                     <div class="card-buttons">
