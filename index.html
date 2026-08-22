@@ -82,6 +82,7 @@
 
     <script>
         const API_URL = 'https://comparador-precos-ovyp.onrender.com';
+        let listaGlobalProdutos = [];
         let modoDesejosAtivo = false;
 
         async function carregarProdutos() {
@@ -89,8 +90,8 @@
             document.getElementById('titulo-secao').innerText = 'Recomendações em Destaque';
             try {
                 const resposta = await fetch(`${API_URL}/api/produtos`);
-                const produtos = await resposta.json();
-                renderizarCards(produtos);
+                listaGlobalProdutos = await resposta.json();
+                renderizarCards(listaGlobalProdutos);
             } catch (erro) { console.error(erro); }
         }
 
@@ -155,60 +156,41 @@
             carregarProdutos();
         }
 
-        async function adicionarDesejo(produtoId) {
+        // Sistema de Desejos Local (Prático e à prova de falhas)
+        function adicionarDesejo(produtoId) {
             const usuarioId = localStorage.getItem('usuarioId');
-            if(!usuarioId) {
-                alert('Você precisa fazer login para salvar itens na Lista de Desejos!');
-                return;
-            }
-            try {
-                const resposta = await fetch(`${API_URL}/api/desejos`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ usuarioId, produtoId })
-                });
-                const dados = await resposta.json();
-                if(dados.sucesso) {
-                    alert('Produto adicionado à sua Lista de Desejos!');
-                } else {
-                    alert('Erro ao salvar: ' + (dados.erro || 'desconhecido'));
-                }
-            } catch(e) { 
-                console.error(e);
-                alert('Erro de conexão ao adicionar aos desejos.'); 
+            if(!usuarioId) return alert('Faça login para salvar itens na Lista de Desejos!');
+            
+            let desejos = JSON.parse(localStorage.getItem('desejos_' + usuarioId) || '[]');
+            if(!desejos.includes(String(produtoId))) {
+                desejos.push(String(produtoId));
+                localStorage.setItem('desejos_' + usuarioId, JSON.stringify(desejos));
+                alert('Produto adicionado à Lista de Desejos!');
+            } else {
+                alert('Este produto já está na sua lista!');
             }
         }
 
-        async function removerDesejo(produtoId) {
+        function removerDesejo(produtoId) {
             const usuarioId = localStorage.getItem('usuarioId');
-            try {
-                const resposta = await fetch(`${API_URL}/api/desejos/${usuarioId}/${produtoId}`, {
-                    method: 'DELETE'
-                });
-                const dados = await resposta.json();
-                if(dados.sucesso) {
-                    alert('Removido dos Desejos!');
-                    carregarDesejos();
-                } else {
-                    alert('Erro ao remover.');
-                }
-            } catch(e) { alert('Erro de conexão ao remover.'); }
+            let desejos = JSON.parse(localStorage.getItem('desejos_' + usuarioId) || '[]');
+            desejos = desejos.filter(id => id !== String(produtoId));
+            localStorage.setItem('desejos_' + usuarioId, JSON.stringify(desejos));
+            alert('Removido dos Desejos!');
+            carregarDesejos();
         }
 
-        async function carregarDesejos() {
+        function carregarDesejos() {
             const usuarioId = localStorage.getItem('usuarioId');
-            if(!usuarioId) {
-                alert('Faça login primeiro para ver sua lista.');
-                return;
-            }
+            if(!usuarioId) return alert('Faça login primeiro para ver sua lista.');
             
             modoDesejosAtivo = true;
             document.getElementById('titulo-secao').innerText = 'Sua Lista de Desejos';
-            try {
-                const resposta = await fetch(`${API_URL}/api/desejos/${usuarioId}`);
-                const produtos = await resposta.json();
-                renderizarCards(produtos);
-            } catch(e) { console.error(e); }
+            
+            const idsDesejos = JSON.parse(localStorage.getItem('desejos_' + usuarioId) || '[]');
+            const produtosFiltrados = listaGlobalProdutos.filter(p => idsDesejos.includes(String(p.id)));
+            
+            renderizarCards(produtosFiltrados);
         }
 
         function renderizarCards(produtos) {
