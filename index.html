@@ -374,30 +374,16 @@
                     `;
                 }
 
-                // Removemos o replace() que forçava alta resolução quebrando os links do ML.
+                // Usa EXATAMENTE a imagem que está no banco de dados, sem invenções.
                 let imagemSegura = produto.imagem_url || '';
                 if (imagemSegura.includes('http://')) imagemSegura = imagemSegura.replace('http://', 'https://');
-
-                // Fallbacks do Unsplash (não dão block de CORS)
                 const placeholderNeutro = 'https://dummyimage.com/300x300/202024/00e5ff.png&text=Sem+Foto';
-                const imgGenerica = 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?w=320';
-
-                if (!imagemSegura || imagemSegura === 'Sem imagem' || imagemSegura.includes('dummyimage') || imagemSegura.includes('Sem+Foto')) {
-                    const n = (produto.nome || '').toLowerCase();
-                    if (n.includes('mouse')) imagemSegura = 'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=320';
-                    else if (n.includes('monitor') || n.includes('tela')) imagemSegura = 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=320';
-                    else if (n.includes('placa') || n.includes('rtx') || n.includes('video')) imagemSegura = 'https://images.unsplash.com/photo-1591488320449-011701bb6704?w=320';
-                    else if (n.includes('processador') || n.includes('cpu')) imagemSegura = 'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=320';
-                    else if (n.includes('memoria') || n.includes('ram')) imagemSegura = 'https://images.unsplash.com/photo-1562976540-1502c2145186?w=320';
-                    else if (n.includes('notebook') || n.includes('laptop')) imagemSegura = 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=320';
-                    else imagemSegura = imgGenerica;
-                }
 
                 card.innerHTML = `
                     <div>
                         <div class="card-img-container">
                             ${badgeOfertaHTML}
-                            <img src="${imagemSegura}" alt="${produto.nome || 'Produto'}" onerror="this.onerror=null; this.src='${imgGenerica}';">
+                            <img src="${imagemSegura}" alt="${produto.nome || 'Produto'}" onerror="this.onerror=null; this.src='${placeholderNeutro}';">
                         </div>
                         <h3 class="card-title" title="${produto.nome}">${produto.nome || 'Produto sem nome'}</h3>
                         ${visualPreco}
