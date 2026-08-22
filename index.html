@@ -139,7 +139,6 @@
             } else if (criterio === 'maior-preco') {
                 listaProdutosExibidos.sort((a, b) => parseFloat(b.preco) - parseFloat(a.preco));
             } else {
-                // Padrão (reaplica o filtro atual ou ordem original)
                 filtrarProdutos(document.getElementById('input-pesquisa').value);
                 return;
             }
@@ -164,11 +163,27 @@
                 
                 listaProdutosExibidos = baseBusca.filter(p => {
                     const nomeProduto = (p.nome || '').toLowerCase();
-                    return palavras.every(palavra => nomeProduto.includes(palavra));
+                    const atendeTodasAsPalavras = palavras.every(palavra => nomeProduto.includes(palavra));
+                    
+                    if (!atendeTodasAsPalavras) return false;
+
+                    // Trava inteligente para evitar misturar produtos irrelevantes na busca por notebook
+                    if (termoBusca.includes('notebook')) {
+                        const ehInvalido = nomeProduto.includes('mouse') || 
+                                          nomeProduto.includes('memoria') || 
+                                          nomeProduto.includes('ssd') || 
+                                          nomeProduto.includes('teclado') ||
+                                          nomeProduto.includes('gabinete') ||
+                                          nomeProduto.includes('monitor') ||
+                                          nomeProduto.includes('suporte');
+                        if (ehInvalido) return false;
+                    }
+
+                    return true;
                 });
             }
 
-            // Aplica a ordenação atual caso esteja selecionada
+            // Mantém a ordenação ativa se houver alguma selecionada
             const criterio = document.getElementById('select-ordenacao').value;
             if (criterio === 'menor-preco') {
                 listaProdutosExibidos.sort((a, b) => parseFloat(a.preco) - parseFloat(b.preco));
