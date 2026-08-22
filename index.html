@@ -28,7 +28,8 @@
     <script>
         async function carregarProdutos() {
             try {
-                const resposta = await fetch('http://localhost:3000/api/produtos');
+                // 👇 AQUI ESTÁ A MUDANÇA: O site agora busca os dados na nuvem (Render)
+                const resposta = await fetch('https://comparador-precos-ovyp.onrender.com/api/produtos');
                 const produtos = await resposta.json();
                 
                 const container = document.getElementById('lista-produtos');
@@ -37,7 +38,6 @@
                     const card = document.createElement('div');
                     card.className = 'card';
                     
-                    // Link da Wikimedia no onerror, 100% confiável para os navegadores
                     card.innerHTML = `
                         <img src="${produto.imagem_url}" alt="${produto.nome}" onerror="this.onerror=null; this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/No-Image-Placeholder.svg/330px-No-Image-Placeholder.svg.png';">
                         <h3 class="titulo">${produto.nome}</h3>
