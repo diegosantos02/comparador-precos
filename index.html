@@ -156,7 +156,6 @@
             carregarProdutos();
         }
 
-        // Sistema de Desejos Local (Prático e à prova de falhas)
         function adicionarDesejo(produtoId) {
             const usuarioId = localStorage.getItem('usuarioId');
             if(!usuarioId) return alert('Faça login para salvar itens na Lista de Desejos!');
@@ -165,9 +164,7 @@
             if(!desejos.includes(String(produtoId))) {
                 desejos.push(String(produtoId));
                 localStorage.setItem('desejos_' + usuarioId, JSON.stringify(desejos));
-                alert('Produto adicionado à Lista de Desejos!');
-            } else {
-                alert('Este produto já está na sua lista!');
+                renderizarCards(listaGlobalProdutos);
             }
         }
 
@@ -176,8 +173,12 @@
             let desejos = JSON.parse(localStorage.getItem('desejos_' + usuarioId) || '[]');
             desejos = desejos.filter(id => id !== String(produtoId));
             localStorage.setItem('desejos_' + usuarioId, JSON.stringify(desejos));
-            alert('Removido dos Desejos!');
-            carregarDesejos();
+            
+            if (modoDesejosAtivo) {
+                carregarDesejos();
+            } else {
+                renderizarCards(listaGlobalProdutos);
+            }
         }
 
         function carregarDesejos() {
@@ -200,17 +201,31 @@
                 container.innerHTML = '<p style="color: #7c7c8a;">Nenhum produto encontrado.</p>';
                 return;
             }
+
+            const usuarioId = localStorage.getItem('usuarioId');
+            const desejos = JSON.parse(localStorage.getItem('desejos_' + usuarioId) || '[]');
+
             produtos.forEach(produto => {
                 const card = document.createElement('div');
                 card.className = 'card';
                 
-                let botaoAcaoHTML = `
-                    <button class="btn-desejo" onclick="adicionarDesejo('${produto.id}')">❤️ Adicionar aos Desejos</button>
-                `;
+                const jaFavoritado = desejos.includes(String(produto.id));
+
+                let botaoAcaoHTML = '';
                 if (modoDesejosAtivo) {
                     botaoAcaoHTML = `
                         <button class="btn-remover" onclick="removerDesejo('${produto.id}')">🗑️ Remover dos Desejos</button>
                     `;
+                } else {
+                    if (jaFavoritado) {
+                        botaoAcaoHTML = `
+                            <button class="btn-desejo" style="background-color: #00e5ff; color: #121214; font-weight: bold;" disabled>✔️ Adicionado à Lista</button>
+                        `;
+                    } else {
+                        botaoAcaoHTML = `
+                            <button class="btn-desejo" onclick="adicionarDesejo('${produto.id}')">❤️ Adicionar aos Desejos</button>
+                        `;
+                    }
                 }
 
                 card.innerHTML = `
