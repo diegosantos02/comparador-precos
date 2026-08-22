@@ -60,12 +60,13 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// Adicionar à lista de desejos (Blindado convertendo tudo para texto)
+// Adicionar à lista de desejos (Blindado para tratar o ID como string exata)
 app.post('/api/desejos', async (req, res) => {
     const { usuarioId, produtoId } = req.body;
     try {
         const produtoIdStr = String(produtoId);
         
+        // Verifica se já existe na lista
         const duplicado = await pool.query('SELECT * FROM lista_desejos WHERE usuario_id = $1 AND produto_id = $2', [usuarioId, produtoIdStr]);
         if (duplicado.rows.length > 0) {
             return res.json({ sucesso: true, mensagem: "Produto já está na lista!" });
@@ -79,7 +80,7 @@ app.post('/api/desejos', async (req, res) => {
     }
 });
 
-// Buscar lista de desejos do usuário (Com conversão segura para evitar incompatibilidade de tipos)
+// Buscar lista de desejos do usuário (Fazendo o cast explícito de tipos para evitar rejeição)
 app.get('/api/desejos/:usuarioId', async (req, res) => {
     const { usuarioId } = req.params;
     try {
