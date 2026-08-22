@@ -26,12 +26,10 @@
 
         .main-content { flex: 1; padding: 30px; height: 100vh; overflow-y: auto; }
         
-        /* Estilos dos botões de filtro */
-        .filtros-container { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
-        .filtro-btn { background-color: #202024; border: 1px solid #323238; color: #00e5ff; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 0.85em; font-weight: bold; }
-        .filtro-btn:hover { background-color: #00e5ff; color: #121214; }
+        .top-controls { display: flex; gap: 15px; margin-bottom: 20px; align-items: center; }
+        .search-bar { background-color: #202024; border: 1px solid #323238; padding: 12px; border-radius: 8px; flex: 1; color: white; font-size: 0.95em; }
+        .select-ordenacao { background-color: #202024; border: 1px solid #323238; padding: 12px; border-radius: 8px; color: #00e5ff; font-weight: bold; cursor: pointer; font-size: 0.9em; outline: none; }
 
-        .search-bar { background-color: #202024; border: 1px solid #323238; padding: 15px; border-radius: 8px; width: 100%; color: white; margin-bottom: 30px; }
         .section-title { font-size: 1.2em; border-bottom: 2px solid #323238; padding-bottom: 10px; margin-bottom: 20px; color: #e1e1e6; }
         
         .grid-produtos { display: flex; flex-wrap: wrap; gap: 20px; padding-bottom: 20px; }
@@ -85,16 +83,15 @@
     </aside>
 
     <main class="main-content">
-        <!-- Botões de Filtros Rápidos -->
-        <div class="filtros-container">
-            <button class="filtro-btn" onclick="filtrarPorOrigem('Todos')">🌐 Todos</button>
-            <button class="filtro-btn" onclick="filtrarPorCategoria('notebook')">💻 Notebooks</button>
-            <button class="filtro-btn" onclick="filtrarPorCategoria('monitor')">🖥️ Monitores</button>
-            <button class="filtro-btn" onclick="filtrarPorCategoria('placa de video')">🎮 Placas de Vídeo</button>
-            <button class="filtro-btn" onclick="filtrarPorCategoria('mouse')">🖱️ Mouses</button>
+        <div class="top-controls">
+            <input type="text" class="search-bar" id="input-pesquisa" placeholder="Ex: Notebook, Monitor, Placa de Vídeo, Mouse..." oninput="filtrarProdutos(this.value)">
+            <select class="select-ordenacao" id="select-ordenacao" onchange="ordenarProdutos()">
+                <option value="padrao">Ordenar por: Relevância</option>
+                <option value="menor-preco">📉 Menor Preço</option>
+                <option value="maior-preco">📈 Maior Preço</option>
+            </select>
         </div>
 
-        <input type="text" class="search-bar" id="input-pesquisa" placeholder="Ex: Notebook, Monitor, Placa de Vídeo, Mouse..." oninput="filtrarProdutos(this.value)">
         <h2 class="section-title" id="titulo-secao">Recomendações em Destaque</h2>
         
         <div class="grid-produtos" id="grid-produtos">
@@ -121,6 +118,7 @@
             modoDesejosAtivo = false;
             paginaAtual = 1;
             document.getElementById('input-pesquisa').value = '';
+            document.getElementById('select-ordenacao').value = 'padrao';
             document.getElementById('titulo-secao').innerText = 'Recomendações em Destaque';
             try {
                 const resposta = await fetch(`${API_URL}/api/produtos`);
@@ -133,33 +131,20 @@
             } catch (erro) { console.error(erro); }
         }
 
-        function filtrarPorOrigem(origem) {
-            modoDesejosAtivo = false;
-            paginaAtual = 1;
-            document.getElementById('input-pesquisa').value = '';
-            
-            if (origem === 'Todos') {
-                listaProdutosExibidos = [...listaGlobalProdutos];
-                document.getElementById('titulo-secao').innerText = 'Recomendações em Destaque';
-            } else {
-                listaProdutosExibidos = listaGlobalProdutos.filter(p => p.origem === origem);
-                document.getElementById('titulo-secao').innerText = `Produtos de: ${origem}`;
-            }
-            renderizarPagina();
-        }
+        function ordenarProdutos() {
+            const criterio = document.getElementById('select-ordenacao').value;
 
-        function filtrarPorCategoria(categoriaTermo) {
-            modoDesejosAtivo = false;
+            if (criterio === 'menor-preco') {
+                listaProdutosExibidos.sort((a, b) => parseFloat(a.preco) - parseFloat(b.preco));
+            } else if (criterio === 'maior-preco') {
+                listaProdutosExibidos.sort((a, b) => parseFloat(b.preco) - parseFloat(a.preco));
+            } else {
+                // Padrão (reaplica o filtro atual ou ordem original)
+                filtrarProdutos(document.getElementById('input-pesquisa').value);
+                return;
+            }
+
             paginaAtual = 1;
-            document.getElementById('input-pesquisa').value = '';
-            
-            listaProdutosExibidos = listaGlobalProdutos.filter(p => {
-                const nome = (p.nome || '').toLowerCase();
-                const cat = (p.categoria || '').toLowerCase();
-                return nome.includes(categoriaTermo) || cat.includes(categoriaTermo);
-            });
-            
-            document.getElementById('titulo-secao').innerText = `Categoria: ${categoriaTermo.toUpperCase()}`;
             renderizarPagina();
         }
 
@@ -179,9 +164,16 @@
                 
                 listaProdutosExibidos = baseBusca.filter(p => {
                     const nomeProduto = (p.nome || '').toLowerCase();
-                    const atendeTodasAsPalavras = palavras.every(palavra => nomeProduto.includes(palavra));
-                    return atendeTodasAsPalavras;
+                    return palavras.every(palavra => nomeProduto.includes(palavra));
                 });
+            }
+
+            // Aplica a ordenação atual caso esteja selecionada
+            const criterio = document.getElementById('select-ordenacao').value;
+            if (criterio === 'menor-preco') {
+                listaProdutosExibidos.sort((a, b) => parseFloat(a.preco) - parseFloat(b.preco));
+            } else if (criterio === 'maior-preco') {
+                listaProdutosExibidos.sort((a, b) => parseFloat(b.preco) - parseFloat(a.preco));
             }
             
             paginaAtual = 1;
@@ -281,6 +273,7 @@
             modoDesejosAtivo = true;
             paginaAtual = 1;
             document.getElementById('input-pesquisa').value = '';
+            document.getElementById('select-ordenacao').value = 'padrao';
             document.getElementById('titulo-secao').innerText = 'Sua Lista de Desejos';
             
             const idsDesejos = JSON.parse(localStorage.getItem('desejos_' + usuarioId) || '[]');
