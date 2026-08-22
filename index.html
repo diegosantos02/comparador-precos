@@ -309,15 +309,16 @@
                     }
                 }
 
-                // Imagem blindada com fallback garantido para produto tecnológico
-                const imagemSrc = produto.imagem_url && produto.imagem_url.trim() !== '' 
+                // Fallback limpo usando Wikimedia para evitar erros de CORS/bloqueio da Amazon
+                const placeholderImg = 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/No-Image-Placeholder.svg/330px-No-Image-Placeholder.svg.png';
+                const imagemSrc = produto.imagem_url && produto.imagem_url.trim() !== '' && !produto.imagem_url.includes('Placeholder')
                     ? produto.imagem_url 
-                    : 'https://m.media-amazon.com/images/I/61UukvnbriL._AC_SL1500_.jpg';
+                    : placeholderImg;
 
                 card.innerHTML = `
                     <div>
                         <div class="card-img-container">
-                            <img src="${imagemSrc}" alt="${produto.nome || 'Produto'}" onerror="this.src='https://m.media-amazon.com/images/I/61UukvnbriL._AC_SL1500_.jpg';">
+                            <img src="${imagemSrc}" alt="${produto.nome || 'Produto'}" onerror="this.src='${placeholderImg}';">
                         </div>
                         <h3 class="card-title" title="${produto.nome}">${produto.nome || 'Produto sem nome'}</h3>
                         <p class="card-price">R$ ${parseFloat(produto.preco || 0).toFixed(2)}</p>
