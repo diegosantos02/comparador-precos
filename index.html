@@ -40,7 +40,9 @@
         .card-buttons { display: flex; flex-direction: column; gap: 8px; }
         .btn-oferta { display: block; background-color: transparent; border: 1px solid #00e5ff; color: #00e5ff; text-decoration: none; padding: 7px; border-radius: 5px; font-weight: bold; font-size: 0.85em; text-align: center; }
         .btn-desejo { background-color: #323238; border: none; color: #c4c4cc; padding: 6px; border-radius: 5px; font-size: 0.8em; cursor: pointer; }
-        .btn-desejo:hover { background-color: #ff5555; color: white; }
+        .btn-desejo:hover { background-color: #00e5ff; color: #121214; }
+        .btn-remover { background-color: #323238; border: none; color: #ff5555; padding: 6px; border-radius: 5px; font-size: 0.8em; cursor: pointer; }
+        .btn-remover:hover { background-color: #ff5555; color: white; }
     </style>
 </head>
 <body>
@@ -80,22 +82,22 @@
 
     <script>
         const API_URL = 'https://comparador-precos-ovyp.onrender.com';
+        let modoDesejosAtivo = false;
 
         async function carregarProdutos() {
+            modoDesejosAtivo = false;
             document.getElementById('titulo-secao').innerText = 'Recomendações em Destaque';
             try {
                 const resposta = await fetch(`${API_URL}/api/produtos`);
                 const produtos = await resposta.json();
                 renderizarCards(produtos);
-            } catch (erro) {
-                console.error(erro);
-            }
+            } catch (erro) { console.error(erro); }
         }
 
         async function fazerCadastro() {
             const email = document.getElementById('login-email').value;
             const senha = document.getElementById('login-senha').value;
-            if(!email || !senha) return alert('Preencha e-mail e senha para cadastrar!');
+            if(!email || !senha) return alert('Preencha e-mail e senha!');
 
             try {
                 const resposta = await fetch(`${API_URL}/api/cadastrar`, {
@@ -109,10 +111,8 @@
                     localStorage.setItem('userEmail', dados.email);
                     atualizarEstadoLogin();
                     alert('Conta criada com sucesso!');
-                } else {
-                    alert(dados.erro);
-                }
-            } catch (e) { alert('Erro na comunicação com o servidor.'); }
+                } else { alert(dados.erro); }
+            } catch (e) { alert('Erro no cadastro.'); }
         }
 
         async function fazerLogin() {
@@ -131,11 +131,9 @@
                     localStorage.setItem('usuarioId', dados.usuarioId);
                     localStorage.setItem('userEmail', dados.email);
                     atualizarEstadoLogin();
-                    alert('Login efetuado com sucesso!');
-                } else {
-                    alert(dados.erro);
-                }
-            } catch (e) { alert('Erro na comunicação com o servidor.'); }
+                    alert('Login efetuado!');
+                } else { alert(dados.erro); }
+            } catch (e) { alert('Erro no login.'); }
         }
 
         function atualizarEstadoLogin() {
@@ -159,10 +157,7 @@
 
         async function adicionarDesejo(produtoId) {
             const usuarioId = localStorage.getItem('usuarioId');
-            if(!usuarioId) {
-                alert('Faça login ou cadastre-se para salvar itens!');
-                return;
-            }
+            if(!usuarioId) return alert('Faça login para salvar!');
             try {
                 const resposta = await fetch(`${API_URL}/api/desejos`, {
                     method: 'POST',
@@ -170,16 +165,29 @@
                     body: JSON.stringify({ usuarioId, produtoId })
                 });
                 const dados = await resposta.json();
-                if(dados.sucesso) alert('Produto salvo na sua Lista de Desejos!');
+                if(dados.sucesso) alert('Adicionado aos Desejos!');
             } catch(e) { alert('Erro ao salvar.'); }
+        }
+
+        async function removerDesejo(produtoId) {
+            const usuarioId = localStorage.getItem('usuarioId');
+            try {
+                const resposta = await fetch(`${API_URL}/api/desejos/${usuarioId}/${produtoId}`, {
+                    method: 'DELETE'
+                });
+                const dados = await resposta.json();
+                if(dados.sucesso) {
+                    alert('Removido dos Desejos!');
+                    carregarDesejos();
+                }
+            } catch(e) { alert('Erro ao remover.'); }
         }
 
         async function carregarDesejos() {
             const usuarioId = localStorage.getItem('usuarioId');
-            if(!usuarioId) {
-                alert('Faça login primeiro.');
-                return;
-            }
+            if(!usuarioId) return alert('Faça login para ver sua lista.');
+            
+            modoDesejosAtivo = true;
             document.getElementById('titulo-secao').innerText = 'Sua Lista de Desejos';
             try {
                 const resposta = await fetch(`${API_URL}/api/desejos/${usuarioId}`);
@@ -198,6 +206,16 @@
             produtos.forEach(produto => {
                 const card = document.createElement('div');
                 card.className = 'card';
+                
+                let botaoAcaoHTML = `
+                    <button class="btn-desejo" onclick="adicionarDesejo(${produto.id})">❤️ Adicionar aos Desejos</button>
+                `;
+                if (modoDesejosAtivo) {
+                    botaoAcaoHTML = `
+                        <button class="btn-remover" onclick="removerDesejo(${produto.id})">🗑️ Remover dos Desejos</button>
+                    `;
+                }
+
                 card.innerHTML = `
                     <div>
                         <div class="card-img-container">
@@ -209,7 +227,7 @@
                     </div>
                     <div class="card-buttons">
                         <a href="${produto.link_afiliado || '#'}" target="_blank" class="btn-oferta">Ver Ofertas</a>
-                        <button class="btn-desejo" onclick="adicionarDesejo(${produto.id})">❤️ Adicionar aos Desejos</button>
+                        ${botaoAcaoHTML}
                     </div>
                 `;
                 container.appendChild(card);
