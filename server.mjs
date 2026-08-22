@@ -7,11 +7,17 @@ const app = express();
 app.use(cors()); 
 app.use(express.json());
 
-const CONEXAO_NEON = "postgresql://neondb_owner:npg_pCst8BP9Vrmy@ep-dry-frost-ac58yt76-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require";
+// 👇 Usando a conexão limpa com o objeto ssl explícito para o NeonDB
+const CONEXAO_NEON = "postgresql://neondb_owner:npg_pCst8BP9Vrmy@ep-dry-frost-ac58yt76-pooler.sa-east-1.aws.neon.tech/neondb";
 
 const pool = new Pool({
     connectionString: CONEXAO_NEON,
     ssl: { rejectUnauthorized: false }
+});
+
+// Teste rápido de rota para garantir que o servidor está vivo
+app.get('/', (req, res) => {
+    res.send('Servidor Mercheap rodando perfeitamente!');
 });
 
 // Listar produtos
@@ -36,8 +42,8 @@ app.post('/api/cadastrar', async (req, res) => {
         const novo = await pool.query('INSERT INTO usuarios (email, senha) VALUES ($1, $2) RETURNING *', [email, senha]);
         res.json({ sucesso: true, usuarioId: novo.rows[0].id, email: novo.rows[0].email });
     } catch (erro) {
-        console.error("Erro no cadastro:", erro);
-        res.status(500).json({ erro: "Erro ao cadastrar usuário" });
+        console.error("Erro detalhado no cadastro:", erro);
+        res.status(500).json({ erro: "Erro ao cadastrar usuário no banco" });
     }
 });
 
@@ -55,7 +61,7 @@ app.post('/api/login', async (req, res) => {
         }
         res.json({ sucesso: true, usuarioId: usuario.id, email: usuario.email });
     } catch (erro) {
-        console.error("Erro no login:", erro);
+        console.error("Erro detalhado no login:", erro);
         res.status(500).json({ erro: "Erro ao processar login" });
     }
 });
@@ -67,6 +73,7 @@ app.post('/api/desejos', async (req, res) => {
         await pool.query('INSERT INTO lista_desejos (usuario_id, produto_id) VALUES ($1, $2)', [usuarioId, produtoId]);
         res.json({ sucesso: true });
     } catch (erro) {
+        console.error("Erro ao salvar desejo:", erro);
         res.status(500).json({ erro: "Erro ao salvar favorito" });
     }
 });
@@ -83,9 +90,12 @@ app.get('/api/desejos/:usuarioId', async (req, res) => {
         const resultado = await pool.query(query, [usuarioId]);
         res.json(resultado.rows);
     } catch (erro) {
+        console.error("Erro ao carregar desejos:", erro);
         res.status(500).json({ erro: "Erro ao carregar desejos" });
     }
 });
 
 const PORTA = process.env.PORT || 3000;
-app.listen(PORTA, () => console.log(`Rodando na porta ${PORTA}`));
+app.listen(PORTA, () => {
+    console.log(`🚀 Servidor Mercheap rodando na porta: ${PORTA}`);
+});
