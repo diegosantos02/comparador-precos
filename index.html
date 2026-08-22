@@ -79,7 +79,6 @@
     </aside>
 
     <main class="main-content">
-        <!-- Barra de Pesquisa Atualizada com o evento oninput -->
         <input type="text" class="search-bar" id="input-pesquisa" placeholder="Ex: Notebook Avell, Monitor Dell, Placa de Vídeo..." oninput="filtrarProdutos(this.value)">
         <h2 class="section-title" id="titulo-secao">Recomendações em Destaque</h2>
         
@@ -97,7 +96,7 @@
     <script>
         const API_URL = 'https://comparador-precos-ovyp.onrender.com';
         let listaGlobalProdutos = [];
-        let listaProdutosExibidos = []; // Armazena a lista filtrada atual
+        let listaProdutosExibidos = [];
         let modoDesejosAtivo = false;
         
         let paginaAtual = 1;
@@ -119,21 +118,26 @@
             } catch (erro) { console.error(erro); }
         }
 
-        // Função para filtrar os produtos com base na digitação da barra de pesquisa
         function filtrarProdutos(termo) {
             const termoBusca = termo.toLowerCase().trim();
             
-            if (modoDesejosAtivo) {
+            let baseBusca = modoDesejosAtivo ? (() => {
                 const usuarioId = localStorage.getItem('usuarioId');
                 const idsDesejos = JSON.parse(localStorage.getItem('desejos_' + usuarioId) || '[]');
-                const desejosProdutos = listaGlobalProdutos.filter(p => idsDesejos.includes(String(p.id)));
-                
-                listaProdutosExibidos = desejosProdutos.filter(p => p.nome.toLowerCase().includes(termoBusca));
+                return listaGlobalProdutos.filter(p => idsDesejos.includes(String(p.id)));
+            })() : listaGlobalProdutos;
+
+            if (!termoBusca) {
+                listaProdutosExibidos = [...baseBusca];
             } else {
-                listaProdutosExibidos = listaGlobalProdutos.filter(p => p.nome.toLowerCase().includes(termoBusca));
+                // Filtro estrito para garantir que o título do produto contenha o termo pesquisado
+                listaProdutosExibidos = baseBusca.filter(p => {
+                    const nomeProduto = (p.nome || '').toLowerCase();
+                    return nomeProduto.includes(termoBusca);
+                });
             }
             
-            paginaAtual = 1; // Reseta para a primeira página da busca
+            paginaAtual = 1;
             renderizarPagina();
         }
 
