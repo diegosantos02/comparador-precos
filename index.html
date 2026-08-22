@@ -170,7 +170,6 @@
                     
                     if (!atendeTodasAsPalavras) return false;
 
-                    // Busca purificada: ao digitar notebook, ignora acessórios e periféricos
                     if (termoBusca === 'notebook') {
                         const ehInvalido = nomeProduto.includes('mouse') || 
                                           nomeProduto.includes('memoria') || 
@@ -375,30 +374,30 @@
                     `;
                 }
 
-                // Injeção visual das imagens com prevenção de loop infinito (this.onerror=null)
+                // Removemos o replace() que forçava alta resolução quebrando os links do ML.
                 let imagemSegura = produto.imagem_url || '';
                 if (imagemSegura.includes('http://')) imagemSegura = imagemSegura.replace('http://', 'https://');
-                if (imagemSegura.includes('-I.jpg')) imagemSegura = imagemSegura.replace('-I.jpg', '-O.jpg');
 
-                const imagemGenerica = 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Pc_components.jpg/320px-Pc_components.jpg';
+                // Fallbacks do Unsplash (não dão block de CORS)
                 const placeholderNeutro = 'https://dummyimage.com/300x300/202024/00e5ff.png&text=Sem+Foto';
+                const imgGenerica = 'https://images.unsplash.com/photo-1587202372634-32705e3bf49c?w=320';
 
-                if (!imagemSegura || imagemSegura === 'Sem imagem' || imagemSegura.includes('Placeholder') || imagemSegura.includes('dummyimage') || imagemSegura.includes('Sem+Imagem')) {
+                if (!imagemSegura || imagemSegura === 'Sem imagem' || imagemSegura.includes('dummyimage') || imagemSegura.includes('Sem+Foto')) {
                     const n = (produto.nome || '').toLowerCase();
-                    if (n.includes('mouse')) imagemSegura = 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/3-Tasten-Maus_Microsoft.jpg/320px-3-Tasten-Maus_Microsoft.jpg';
-                    else if (n.includes('monitor') || n.includes('tela')) imagemSegura = 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/LG_L194WT-SF_LCD_monitor.jpg/320px-LG_L194WT-SF_LCD_monitor.jpg';
-                    else if (n.includes('placa') || n.includes('rtx') || n.includes('gtx') || n.includes('rx') || n.includes('video')) imagemSegura = 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Gigabyte_Radeon_RX_5700_XT_Gaming_OC_8G_1.jpg/320px-Gigabyte_Radeon_RX_5700_XT_Gaming_OC_8G_1.jpg';
-                    else if (n.includes('processador') || n.includes('ryzen') || n.includes('cpu') || n.includes('intel')) imagemSegura = 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Intel_Core_i5.jpg/320px-Intel_Core_i5.jpg';
-                    else if (n.includes('memoria') || n.includes('memória') || n.includes('ram') || n.includes('blister')) imagemSegura = 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/db/Swissbit_2GB_PC2-5300U-555.jpg/320px-Swissbit_2GB_PC2-5300U-555.jpg';
-                    else if (n.includes('notebook') || n.includes('laptop')) imagemSegura = 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/42/MacBook_Pro_2019.jpg/320px-MacBook_Pro_2019.jpg';
-                    else imagemSegura = imagemGenerica;
+                    if (n.includes('mouse')) imagemSegura = 'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=320';
+                    else if (n.includes('monitor') || n.includes('tela')) imagemSegura = 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=320';
+                    else if (n.includes('placa') || n.includes('rtx') || n.includes('video')) imagemSegura = 'https://images.unsplash.com/photo-1591488320449-011701bb6704?w=320';
+                    else if (n.includes('processador') || n.includes('cpu')) imagemSegura = 'https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=320';
+                    else if (n.includes('memoria') || n.includes('ram')) imagemSegura = 'https://images.unsplash.com/photo-1562976540-1502c2145186?w=320';
+                    else if (n.includes('notebook') || n.includes('laptop')) imagemSegura = 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=320';
+                    else imagemSegura = imgGenerica;
                 }
 
                 card.innerHTML = `
                     <div>
                         <div class="card-img-container">
                             ${badgeOfertaHTML}
-                            <img src="${imagemSegura}" alt="${produto.nome || 'Produto'}" onerror="this.onerror=null; this.src='${placeholderNeutro}';">
+                            <img src="${imagemSegura}" alt="${produto.nome || 'Produto'}" onerror="this.onerror=null; this.src='${imgGenerica}';">
                         </div>
                         <h3 class="card-title" title="${produto.nome}">${produto.nome || 'Produto sem nome'}</h3>
                         ${visualPreco}
