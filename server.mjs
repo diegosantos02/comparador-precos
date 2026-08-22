@@ -60,13 +60,12 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// Adicionar à lista de desejos (Blindado para aceitar IDs de texto ou número)
+// Adicionar à lista de desejos (Blindado convertendo tudo para texto)
 app.post('/api/desejos', async (req, res) => {
     const { usuarioId, produtoId } = req.body;
     try {
-        const produtoIdStr = String(produtoId); // Garante que vai como texto para corresponder ao VARCHAR do banco
+        const produtoIdStr = String(produtoId);
         
-        // Evita duplicar o mesmo produto na lista do usuário
         const duplicado = await pool.query('SELECT * FROM lista_desejos WHERE usuario_id = $1 AND produto_id = $2', [usuarioId, produtoIdStr]);
         if (duplicado.rows.length > 0) {
             return res.json({ sucesso: true, mensagem: "Produto já está na lista!" });
@@ -80,12 +79,12 @@ app.post('/api/desejos', async (req, res) => {
     }
 });
 
-// Buscar lista de desejos do usuário
+// Buscar lista de desejos do usuário (Com conversão segura para evitar incompatibilidade de tipos)
 app.get('/api/desejos/:usuarioId', async (req, res) => {
     const { usuarioId } = req.params;
     try {
         const query = `
-            SELECT p.* FROM produtos_catalogo p
+            SELECT DISTINCT p.* FROM produtos_catalogo p
             JOIN lista_desejos d ON p.id::text = d.produto_id
             WHERE d.usuario_id = $1
         `;
