@@ -14,7 +14,7 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
-// Listar produtos da vitrine
+// Listar produtos
 app.get('/api/produtos', async (req, res) => {
     try {
         const resultado = await pool.query('SELECT * FROM produtos_catalogo ORDER BY preco ASC');
@@ -25,29 +25,28 @@ app.get('/api/produtos', async (req, res) => {
     }
 });
 
-// Cadastro de nova conta
+// Cadastro
 app.post('/api/cadastrar', async (req, res) => {
     const { email, senha } = req.body;
     try {
         const existe = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
         if (existe.rows.length > 0) {
-            return res.status(400).json({ erro: "Este e-mail já está cadastrado!" });
+            return res.status(400).json({ erro: "E-mail já cadastrado!" });
         }
         const novo = await pool.query('INSERT INTO usuarios (email, senha) VALUES ($1, $2) RETURNING *', [email, senha]);
         res.json({ sucesso: true, usuarioId: novo.rows[0].id, email: novo.rows[0].email });
     } catch (erro) {
-        console.error("Erro no cadastro:", erro);
-        res.status(500).json({ erro: "Erro ao cadastrar usuário no banco" });
+        res.status(500).json({ erro: "Erro no cadastro" });
     }
 });
 
-// Login de conta existente
+// Login
 app.post('/api/login', async (req, res) => {
     const { email, senha } = req.body;
     try {
         const resultado = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
         if (resultado.rows.length === 0) {
-            return res.status(404).json({ erro: "Conta não encontrada. Faça o cadastro primeiro!" });
+            return res.status(404).json({ erro: "Conta não encontrada!" });
         }
         const usuario = resultado.rows[0];
         if (usuario.senha !== senha) {
@@ -55,32 +54,28 @@ app.post('/api/login', async (req, res) => {
         }
         res.json({ sucesso: true, usuarioId: usuario.id, email: usuario.email });
     } catch (erro) {
-        console.error("Erro no login:", erro);
-        res.status(500).json({ erro: "Erro ao processar login" });
+        res.status(500).json({ erro: "Erro no login" });
     }
 });
 
-// Adicionar à lista de desejos (Blindado para tratar o ID como string exata)
+// Adicionar Desejo (Simplificado e direto)
 app.post('/api/desejos', async (req, res) => {
     const { usuarioId, produtoId } = req.body;
     try {
-        const produtoIdStr = String(produtoId);
+        const pId = String(produtoId);
         
-        // Verifica se já existe na lista
-        const duplicado = await pool.query('SELECT * FROM lista_desejos WHERE usuario_id = $1 AND produto_id = $2', [usuarioId, produtoIdStr]);
-        if (duplicado.rows.length > 0) {
-            return res.json({ sucesso: true, mensagem: "Produto já está na lista!" });
-        }
+        // Remove duplicado se houver e insere limpo
+        await pool.query('DELETE FROM lista_desejos WHERE usuario_id = $1 AND produto_id = $2', [usuarioId, pId]);
+        await pool.query('INSERT INTO lista_desejos (usuario_id, produto_id) VALUES ($1, $2)', [usuarioId, pId]);
         
-        await pool.query('INSERT INTO lista_desejos (usuario_id, produto_id) VALUES ($1, $2)', [usuarioId, produtoIdStr]);
         res.json({ sucesso: true });
     } catch (erro) {
-        console.error("Erro ao salvar desejo:", erro);
+        console.error("Erro detalhado ao salvar desejo:", erro);
         res.status(500).json({ erro: "Erro ao salvar favorito" });
     }
 });
 
-// Buscar lista de desejos do usuário (Fazendo o cast explícito de tipos para evitar rejeição)
+// Buscar Desejos
 app.get('/api/desejos/:usuarioId', async (req, res) => {
     const { usuarioId } = req.params;
     try {
@@ -92,25 +87,20 @@ app.get('/api/desejos/:usuarioId', async (req, res) => {
         const resultado = await pool.query(query, [usuarioId]);
         res.json(resultado.rows);
     } catch (erro) {
-        console.error("Erro ao carregar desejos:", erro);
         res.status(500).json({ erro: "Erro ao carregar desejos" });
     }
 });
 
-// Remover da lista de desejos
+// Remover Desejo
 app.delete('/api/desejos/:usuarioId/:produtoId', async (req, res) => {
     const { usuarioId, produtoId } = req.params;
     try {
-        const produtoIdStr = String(produtoId);
-        await pool.query('DELETE FROM lista_desejos WHERE usuario_id = $1 AND produto_id = $2', [usuarioId, produtoIdStr]);
+        await pool.query('DELETE FROM lista_desejos WHERE usuario_id = $1 AND produto_id = $2', [usuarioId, String(produtoId)]);
         res.json({ sucesso: true });
     } catch (erro) {
-        console.error("Erro ao remover desejo:", erro);
         res.status(500).json({ erro: "Erro ao remover favorito" });
     }
 });
 
 const PORTA = process.env.PORT || 3000;
-app.listen(PORTA, () => {
-    console.log(`🚀 Servidor Mercheap rodando na porta: ${PORTA}`);
-});
+app.listen(PORTA, () => console.log(`Rodando na porta ${PORTA}`));
