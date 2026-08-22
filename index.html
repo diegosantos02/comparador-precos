@@ -44,7 +44,6 @@
         .btn-remover { background-color: #323238; border: none; color: #ff5555; padding: 6px; border-radius: 5px; font-size: 0.8em; cursor: pointer; }
         .btn-remover:hover { background-color: #ff5555; color: white; }
 
-        /* Estilização da Paginação */
         .pagination { display: flex; justify-content: center; align-items: center; gap: 15px; padding: 30px 0; }
         .page-btn { background-color: #202024; border: 1px solid #323238; color: #00e5ff; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: bold; }
         .page-btn:hover:not(:disabled) { background-color: #00e5ff; color: #121214; }
@@ -80,14 +79,14 @@
     </aside>
 
     <main class="main-content">
-        <input type="text" class="search-bar" placeholder="Ex: Notebook Avell, Monitor Dell, Placa de Vídeo...">
+        <!-- Barra de Pesquisa Atualizada com o evento oninput -->
+        <input type="text" class="search-bar" id="input-pesquisa" placeholder="Ex: Notebook Avell, Monitor Dell, Placa de Vídeo..." oninput="filtrarProdutos(this.value)">
         <h2 class="section-title" id="titulo-secao">Recomendações em Destaque</h2>
         
         <div class="grid-produtos" id="grid-produtos">
             <p style="color: #7c7c8a;">Carregando produtos...</p>
         </div>
 
-        <!-- Controles de Paginação -->
         <div class="pagination" id="pagination-controls" style="display: none;">
             <button class="page-btn" id="btn-anterior" onclick="mudarPagina(-1)">← Anterior</button>
             <span id="page-info">Página 1 de 1</span>
@@ -98,25 +97,44 @@
     <script>
         const API_URL = 'https://comparador-precos-ovyp.onrender.com';
         let listaGlobalProdutos = [];
+        let listaProdutosExibidos = []; // Armazena a lista filtrada atual
         let modoDesejosAtivo = false;
         
-        // Configurações de paginação
         let paginaAtual = 1;
-        const itensPorPagina = 16; // Mostra 16 produtos por vez
+        const itensPorPagina = 16;
 
         async function carregarProdutos() {
             modoDesejosAtivo = false;
             paginaAtual = 1;
+            document.getElementById('input-pesquisa').value = '';
             document.getElementById('titulo-secao').innerText = 'Recomendações em Destaque';
             try {
                 const resposta = await fetch(`${API_URL}/api/produtos`);
                 const dadosBrutos = await resposta.json();
                 
-                // Filtra apenas produtos válidos
                 listaGlobalProdutos = dadosBrutos.filter(p => p.nome && p.nome !== "Sem Nome" && p.nome !== "Produto Sem Nome" && parseFloat(p.preco) > 0);
+                listaProdutosExibidos = [...listaGlobalProdutos];
                 
                 renderizarPagina();
             } catch (erro) { console.error(erro); }
+        }
+
+        // Função para filtrar os produtos com base na digitação da barra de pesquisa
+        function filtrarProdutos(termo) {
+            const termoBusca = termo.toLowerCase().trim();
+            
+            if (modoDesejosAtivo) {
+                const usuarioId = localStorage.getItem('usuarioId');
+                const idsDesejos = JSON.parse(localStorage.getItem('desejos_' + usuarioId) || '[]');
+                const desejosProdutos = listaGlobalProdutos.filter(p => idsDesejos.includes(String(p.id)));
+                
+                listaProdutosExibidos = desejosProdutos.filter(p => p.nome.toLowerCase().includes(termoBusca));
+            } else {
+                listaProdutosExibidos = listaGlobalProdutos.filter(p => p.nome.toLowerCase().includes(termoBusca));
+            }
+            
+            paginaAtual = 1; // Reseta para a primeira página da busca
+            renderizarPagina();
         }
 
         async function fazerCadastro() {
@@ -211,21 +229,22 @@
             
             modoDesejosAtivo = true;
             paginaAtual = 1;
+            document.getElementById('input-pesquisa').value = '';
             document.getElementById('titulo-secao').innerText = 'Sua Lista de Desejos';
             
             const idsDesejos = JSON.parse(localStorage.getItem('desejos_' + usuarioId) || '[]');
-            listaGlobalProdutos = listaGlobalProdutos.filter(p => idsDesejos.includes(String(p.id)));
+            listaProdutosExibidos = listaGlobalProdutos.filter(p => idsDesejos.includes(String(p.id)));
             
             renderizarPagina();
         }
 
         function mudarPagina(direcao) {
-            const totalPaginas = Math.ceil(listaGlobalProdutos.length / itensPorPagina);
+            const totalPaginas = Math.ceil(listaProdutosExibidos.length / itensPorPagina);
             paginaAtual += direcao;
             if (paginaAtual < 1) paginaAtual = 1;
             if (paginaAtual > totalPaginas) paginaAtual = totalPaginas;
             renderizarPagina();
-            document.querySelector('.main-content').scrollTop = 0; // Rola para o topo ao mudar de página
+            document.querySelector('.main-content').scrollTop = 0;
         }
 
         function renderizarPagina() {
@@ -233,20 +252,19 @@
             const pagControls = document.getElementById('pagination-controls');
             container.innerHTML = ''; 
 
-            if (!listaGlobalProdutos || listaGlobalProdutos.length === 0) {
+            if (!listaProdutosExibidos || listaProdutosExibidos.length === 0) {
                 container.innerHTML = '<p style="color: #7c7c8a;">Nenhum produto encontrado.</p>';
                 pagControls.style.display = 'none';
                 return;
             }
 
             pagControls.style.display = 'flex';
-            const totalPaginas = Math.ceil(listaGlobalProdutos.length / itensPorPagina);
+            const totalPaginas = Math.ceil(listaProdutosExibidos.length / itensPorPagina);
             if (paginaAtual > totalPaginas) paginaAtual = totalPaginas;
 
-            // Fatiar apenas os produtos da página atual
             const inicio = (paginaAtual - 1) * itensPorPagina;
             const fim = inicio + itensPorPagina;
-            const produtosDaPagina = listaGlobalProdutos.slice(inicio, fim);
+            const produtosDaPagina = listaProdutosExibidos.slice(inicio, fim);
 
             const usuarioId = localStorage.getItem('usuarioId');
             const desejos = JSON.parse(localStorage.getItem('desejos_' + usuarioId) || '[]');
@@ -291,7 +309,6 @@
                 container.appendChild(card);
             });
 
-            // Atualizar textos dos botões de paginação
             document.getElementById('page-info').innerText = `Página ${paginaAtual} de ${totalPaginas || 1}`;
             document.getElementById('btn-anterior').disabled = paginaAtual === 1;
             document.getElementById('btn-proxima').disabled = paginaAtual === totalPaginas || totalPaginas === 0;
