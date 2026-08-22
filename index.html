@@ -25,6 +25,12 @@
         .btn-logout { background: transparent; border: 1px solid #ff5555; color: #ff5555; padding: 5px; width: 100%; border-radius: 4px; cursor: pointer; font-size: 0.8em; }
 
         .main-content { flex: 1; padding: 30px; height: 100vh; overflow-y: auto; }
+        
+        /* Estilos dos botões de filtro */
+        .filtros-container { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .filtro-btn { background-color: #202024; border: 1px solid #323238; color: #00e5ff; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 0.85em; font-weight: bold; }
+        .filtro-btn:hover { background-color: #00e5ff; color: #121214; }
+
         .search-bar { background-color: #202024; border: 1px solid #323238; padding: 15px; border-radius: 8px; width: 100%; color: white; margin-bottom: 30px; }
         .section-title { font-size: 1.2em; border-bottom: 2px solid #323238; padding-bottom: 10px; margin-bottom: 20px; color: #e1e1e6; }
         
@@ -79,7 +85,16 @@
     </aside>
 
     <main class="main-content">
-        <input type="text" class="search-bar" id="input-pesquisa" placeholder="Ex: Notebook Avell, Monitor Dell, Placa de Vídeo..." oninput="filtrarProdutos(this.value)">
+        <!-- Botões de Filtros Rápidos -->
+        <div class="filtros-container">
+            <button class="filtro-btn" onclick="filtrarPorOrigem('Todos')">🌐 Todos</button>
+            <button class="filtro-btn" onclick="filtrarPorCategoria('notebook')">💻 Notebooks</button>
+            <button class="filtro-btn" onclick="filtrarPorCategoria('monitor')">🖥️ Monitores</button>
+            <button class="filtro-btn" onclick="filtrarPorCategoria('placa de video')">🎮 Placas de Vídeo</button>
+            <button class="filtro-btn" onclick="filtrarPorCategoria('mouse')">🖱️ Mouses</button>
+        </div>
+
+        <input type="text" class="search-bar" id="input-pesquisa" placeholder="Ex: Notebook, Monitor, Placa de Vídeo, Mouse..." oninput="filtrarProdutos(this.value)">
         <h2 class="section-title" id="titulo-secao">Recomendações em Destaque</h2>
         
         <div class="grid-produtos" id="grid-produtos">
@@ -118,6 +133,36 @@
             } catch (erro) { console.error(erro); }
         }
 
+        function filtrarPorOrigem(origem) {
+            modoDesejosAtivo = false;
+            paginaAtual = 1;
+            document.getElementById('input-pesquisa').value = '';
+            
+            if (origem === 'Todos') {
+                listaProdutosExibidos = [...listaGlobalProdutos];
+                document.getElementById('titulo-secao').innerText = 'Recomendações em Destaque';
+            } else {
+                listaProdutosExibidos = listaGlobalProdutos.filter(p => p.origem === origem);
+                document.getElementById('titulo-secao').innerText = `Produtos de: ${origem}`;
+            }
+            renderizarPagina();
+        }
+
+        function filtrarPorCategoria(categoriaTermo) {
+            modoDesejosAtivo = false;
+            paginaAtual = 1;
+            document.getElementById('input-pesquisa').value = '';
+            
+            listaProdutosExibidos = listaGlobalProdutos.filter(p => {
+                const nome = (p.nome || '').toLowerCase();
+                const cat = (p.categoria || '').toLowerCase();
+                return nome.includes(categoriaTermo) || cat.includes(categoriaTermo);
+            });
+            
+            document.getElementById('titulo-secao').innerText = `Categoria: ${categoriaTermo.toUpperCase()}`;
+            renderizarPagina();
+        }
+
         function filtrarProdutos(termo) {
             const termoBusca = termo.toLowerCase().trim();
             
@@ -135,17 +180,6 @@
                 listaProdutosExibidos = baseBusca.filter(p => {
                     const nomeProduto = (p.nome || '').toLowerCase();
                     const atendeTodasAsPalavras = palavras.every(palavra => nomeProduto.includes(palavra));
-                    
-                    if (termoBusca === 'notebook') {
-                        const ehInvalido = nomeProduto.includes('mouse') || 
-                                          nomeProduto.includes('memoria') || 
-                                          nomeProduto.includes('ssd') || 
-                                          nomeProduto.includes('teclado') ||
-                                          nomeProduto.includes('gabinete') ||
-                                          nomeProduto.includes('monitor');
-                        if (ehInvalido) return false;
-                    }
-
                     return atendeTodasAsPalavras;
                 });
             }
@@ -309,7 +343,6 @@
                     }
                 }
 
-                // Fallback limpo usando Wikimedia para evitar erros de CORS/bloqueio da Amazon
                 const placeholderImg = 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/No-Image-Placeholder.svg/330px-No-Image-Placeholder.svg.png';
                 const imagemSrc = produto.imagem_url && produto.imagem_url.trim() !== '' && !produto.imagem_url.includes('Placeholder')
                     ? produto.imagem_url 
