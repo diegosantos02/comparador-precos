@@ -130,10 +130,26 @@
             if (!termoBusca) {
                 listaProdutosExibidos = [...baseBusca];
             } else {
-                // Filtro estrito para garantir que o título do produto contenha o termo pesquisado
+                const palavras = termoBusca.split(/\s+/);
+                
                 listaProdutosExibidos = baseBusca.filter(p => {
                     const nomeProduto = (p.nome || '').toLowerCase();
-                    return nomeProduto.includes(termoBusca);
+                    
+                    // O produto deve conter todas as palavras digitadas
+                    const atendeTodasAsPalavras = palavras.every(palavra => nomeProduto.includes(palavra));
+                    
+                    // Trava de segurança para evitar falsos positivos ao pesquisar "notebook"
+                    if (termoBusca === 'notebook') {
+                        const ehInvalido = nomeProduto.includes('mouse') || 
+                                          nomeProduto.includes('memoria') || 
+                                          nomeProduto.includes('ssd') || 
+                                          nomeProduto.includes('teclado') ||
+                                          nomeProduto.includes('gabinete') ||
+                                          nomeProduto.includes('monitor');
+                        if (ehInvalido) return false;
+                    }
+
+                    return atendeTodasAsPalavras;
                 });
             }
             
