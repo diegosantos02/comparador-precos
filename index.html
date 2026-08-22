@@ -170,6 +170,7 @@
                     
                     if (!atendeTodasAsPalavras) return false;
 
+                    // Busca purificada: ao digitar notebook, ignora acessórios e periféricos
                     if (termoBusca === 'notebook') {
                         const ehInvalido = nomeProduto.includes('mouse') || 
                                           nomeProduto.includes('memoria') || 
@@ -374,14 +375,14 @@
                     `;
                 }
 
-                // Lógica Inteligente para Mouses, Placas, Monitores etc.
+                // Injeção visual das imagens com prevenção de loop infinito (this.onerror=null)
                 let imagemSegura = produto.imagem_url || '';
                 if (imagemSegura.includes('http://')) imagemSegura = imagemSegura.replace('http://', 'https://');
                 if (imagemSegura.includes('-I.jpg')) imagemSegura = imagemSegura.replace('-I.jpg', '-O.jpg');
 
                 const imagemGenerica = 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Pc_components.jpg/320px-Pc_components.jpg';
+                const placeholderNeutro = 'https://dummyimage.com/300x300/202024/00e5ff.png&text=Sem+Foto';
 
-                // Se a imagem no BD for falha, quebrada ou texto bobo, injeta a imagem certa pelo nome
                 if (!imagemSegura || imagemSegura === 'Sem imagem' || imagemSegura.includes('Placeholder') || imagemSegura.includes('dummyimage') || imagemSegura.includes('Sem+Imagem')) {
                     const n = (produto.nome || '').toLowerCase();
                     if (n.includes('mouse')) imagemSegura = 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/3-Tasten-Maus_Microsoft.jpg/320px-3-Tasten-Maus_Microsoft.jpg';
@@ -397,7 +398,7 @@
                     <div>
                         <div class="card-img-container">
                             ${badgeOfertaHTML}
-                            <img src="${imagemSegura}" alt="${produto.nome || 'Produto'}" onerror="this.src='${imagemGenerica}';">
+                            <img src="${imagemSegura}" alt="${produto.nome || 'Produto'}" onerror="this.onerror=null; this.src='${placeholderNeutro}';">
                         </div>
                         <h3 class="card-title" title="${produto.nome}">${produto.nome || 'Produto sem nome'}</h3>
                         ${visualPreco}
