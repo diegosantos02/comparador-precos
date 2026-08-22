@@ -7,44 +7,52 @@ const app = express();
 app.use(cors()); 
 app.use(express.json());
 
-const CONEXAO_NEON_LIMPA = "postgresql://neondb_owner:npg_pCst8BP9Vrmy@ep-dry-frost-ac58yt76-pooler.sa-east-1.aws.neon.tech/neondb";
+const CONEXAO_NEON = "postgresql://neondb_owner:npg_pCst8BP9Vrmy@ep-dry-frost-ac58yt76-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require";
 
 const pool = new Pool({
-    connectionString: CONEXAO_NEON_LIMPA,
+    connectionString: CONEXAO_NEON,
     ssl: { rejectUnauthorized: false }
 });
 
-// 1. Rota para Listar Produtos
+// Listar produtos
 app.get('/api/produtos', async (req, res) => {
     try {
-        const query = 'SELECT * FROM produtos_catalogo ORDER BY preco ASC';
-        const resultado = await pool.query(query);
+        const resultado = await pool.query('SELECT * FROM produtos_catalogo ORDER BY preco ASC');
         res.json(resultado.rows);
     } catch (erro) {
         console.error("Erro ao buscar produtos:", erro);
-        res.status(500).json({ erro: "Erro interno no servidor" });
+        res.status(500).json({ erro: "Erro ao buscar produtos" });
     }
 });
 
-// 2. Rota para Cadastro / Login de Usuário
+// Rota de Cadastro de Nova Conta
+app.post('/api/cadastrar', async (req, res) => {
+    const { email, senha } = req.body;
+    try {
+        const existe = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
+        if (existe.rows.length > 0) {
+            return res.status(400).json({ erro: "Este e-mail já está cadastrado!" });
+        }
+        const novo = await pool.query('INSERT INTO usuarios (email, senha) VALUES ($1, $2) RETURNING *', [email, senha]);
+        res.json({ sucesso: true, usuarioId: novo.rows[0].id, email: novo.rows[0].email });
+    } catch (erro) {
+        console.error("Erro no cadastro:", erro);
+        res.status(500).json({ erro: "Erro ao cadastrar usuário" });
+    }
+});
+
+// Rota de Login de Conta Existente
 app.post('/api/login', async (req, res) => {
     const { email, senha } = req.body;
     try {
-        // Verifica se o usuário já existe
-        let resultado = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
-        
-        let usuario;
-        if (resultado.rows.length > 0) {
-            usuario = resultado.rows[0];
-            if (usuario.senha !== senha) {
-                return res.status(401).json({ erro: "Senha incorreta!" });
-            }
-        } else {
-            // Se não existe, cria a conta automaticamente para facilitar o fluxo de uso
-            const novo = await pool.query('INSERT INTO usuarios (email, senha) VALUES ($1, $2) RETURNING *', [email, senha]);
-            usuario = novo.rows[0];
+        const resultado = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
+        if (resultado.rows.length === 0) {
+            return res.status(404).json({ erro: "Conta não encontrada. Faça o cadastro primeiro!" });
         }
-        
+        const usuario = resultado.rows[0];
+        if (usuario.senha !== senha) {
+            return res.status(401).json({ erro: "Senha incorreta!" });
+        }
         res.json({ sucesso: true, usuarioId: usuario.id, email: usuario.email });
     } catch (erro) {
         console.error("Erro no login:", erro);
@@ -52,19 +60,18 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// 3. Rota para Adicionar à Lista de Desejos
+// Salvar Favoritos / Desejos
 app.post('/api/desejos', async (req, res) => {
     const { usuarioId, produtoId } = req.body;
     try {
         await pool.query('INSERT INTO lista_desejos (usuario_id, produto_id) VALUES ($1, $2)', [usuarioId, produtoId]);
-        res.json({ sucesso: true, mensagem: "Produto salvo na lista de desejos!" });
+        res.json({ sucesso: true });
     } catch (erro) {
-        console.error("Erro ao salvar desejo:", erro);
         res.status(500).json({ erro: "Erro ao salvar favorito" });
     }
 });
 
-// 4. Rota para Buscar a Lista de Desejos do Usuário
+// Listar Desejos do Usuário
 app.get('/api/desejos/:usuarioId', async (req, res) => {
     const { usuarioId } = req.params;
     try {
@@ -76,12 +83,9 @@ app.get('/api/desejos/:usuarioId', async (req, res) => {
         const resultado = await pool.query(query, [usuarioId]);
         res.json(resultado.rows);
     } catch (erro) {
-        console.error("Erro ao buscar desejos:", erro);
-        res.status(500).json({ erro: "Erro ao carregar lista de desejos" });
+        res.status(500).json({ erro: "Erro ao carregar desejos" });
     }
 });
 
 const PORTA = process.env.PORT || 3000;
-app.listen(PORTA, () => {
-    console.log(`🚀 Servidor Mercheap rodando na porta: ${PORTA}`);
-});
+app.listen(PORTA, () => console.log(`Rodando na porta ${PORTA}`));

@@ -16,15 +16,17 @@
         .menu-item:hover { color: #00e5ff; }
         
         .login-box { margin-top: 20px; padding-top: 20px; border-top: 1px solid #323238; }
-        .login-input { background-color: #121214; border: 1px solid #323238; padding: 10px; border-radius: 5px; width: 100%; color: white; margin-bottom: 10px; font-size: 0.85em; }
-        .btn-login { width: 100%; background-color: #00e5ff; color: #121214; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .btn-login:hover { opacity: 0.9; }
+        .login-input { background-color: #121214; border: 1px solid #323238; padding: 8px; border-radius: 5px; width: 100%; color: white; margin-bottom: 8px; font-size: 0.85em; }
+        .btn-acao { width: 100%; background-color: #00e5ff; color: #121214; border: none; padding: 8px; border-radius: 5px; font-weight: bold; cursor: pointer; margin-bottom: 6px; transition: 0.2s; font-size: 0.85em; }
+        .btn-acao:hover { opacity: 0.9; }
+        .btn-secundario { background-color: transparent; border: 1px solid #00e5ff; color: #00e5ff; }
+        
         .user-info { font-size: 0.85em; color: #00e5ff; word-break: break-all; margin-bottom: 10px; }
         .btn-logout { background: transparent; border: 1px solid #ff5555; color: #ff5555; padding: 5px; width: 100%; border-radius: 4px; cursor: pointer; font-size: 0.8em; }
 
         .main-content { flex: 1; padding: 30px; height: 100vh; overflow-y: auto; }
         .search-bar { background-color: #202024; border: 1px solid #323238; padding: 15px; border-radius: 8px; width: 100%; color: white; margin-bottom: 30px; }
-        .section-title { font-size: 1.2em; border-bottom: 2px solid #323238; padding-bottom: 10px; margin-bottom: 20px; color: #e1e1e6; display: flex; justify-content: space-between; align-items: center; }
+        .section-title { font-size: 1.2em; border-bottom: 2px solid #323238; padding-bottom: 10px; margin-bottom: 20px; color: #e1e1e6; }
         
         .grid-produtos { display: flex; flex-wrap: wrap; gap: 20px; padding-bottom: 40px; }
         .card { background-color: #202024; border: 1px solid #323238; border-radius: 8px; padding: 15px; width: 240px; text-align: center; display: flex; flex-direction: column; justify-content: space-between; }
@@ -36,9 +38,8 @@
         .card-vendor { font-size: 0.75em; color: #7c7c8a; margin-bottom: 12px; }
         
         .card-buttons { display: flex; flex-direction: column; gap: 8px; }
-        .btn-oferta { display: block; background-color: transparent; border: 1px solid #00e5ff; color: #00e5ff; text-decoration: none; padding: 7px; border-radius: 5px; font-weight: bold; font-size: 0.85em; transition: 0.3s; text-align: center; }
-        .btn-oferta:hover { background-color: #00e5ff; color: #121214; }
-        .btn-desejo { background-color: #323238; border: none; color: #c4c4cc; padding: 6px; border-radius: 5px; font-size: 0.8em; cursor: pointer; transition: 0.2s; }
+        .btn-oferta { display: block; background-color: transparent; border: 1px solid #00e5ff; color: #00e5ff; text-decoration: none; padding: 7px; border-radius: 5px; font-weight: bold; font-size: 0.85em; text-align: center; }
+        .btn-desejo { background-color: #323238; border: none; color: #c4c4cc; padding: 6px; border-radius: 5px; font-size: 0.8em; cursor: pointer; }
         .btn-desejo:hover { background-color: #ff5555; color: white; }
     </style>
 </head>
@@ -59,7 +60,8 @@
             <div id="form-login">
                 <input type="email" id="login-email" class="login-input" placeholder="Seu e-mail">
                 <input type="password" id="login-senha" class="login-input" placeholder="Sua senha">
-                <button class="btn-login" onclick="fazerLogin()">Entrar / Cadastrar</button>
+                <button class="btn-acao" onclick="fazerLogin()">Fazer Login</button>
+                <button class="btn-acao btn-secundario" onclick="fazerCadastro()">Criar Nova Conta</button>
             </div>
             <div id="perfil-usuario" style="display: none;">
                 <p class="user-info" id="user-email-display"></p>
@@ -70,13 +72,9 @@
 
     <main class="main-content">
         <input type="text" class="search-bar" placeholder="Ex: Notebook Avell, Monitor Dell, Placa de Vídeo...">
-        
-        <h2 class="section-title" id="titulo-secao">
-            <span>Recomendações em Destaque</span>
-        </h2>
-        
+        <h2 class="section-title" id="titulo-secao">Recomendações em Destaque</h2>
         <div class="grid-produtos" id="grid-produtos">
-            <p style="color: #7c7c8a;">Carregando produtos do servidor...</p>
+            <p style="color: #7c7c8a;">Carregando produtos...</p>
         </div>
     </main>
 
@@ -84,15 +82,37 @@
         const API_URL = 'https://comparador-precos-ovyp.onrender.com';
 
         async function carregarProdutos() {
-            document.getElementById('titulo-secao').innerHTML = '<span>Recomendações em Destaque</span>';
+            document.getElementById('titulo-secao').innerText = 'Recomendações em Destaque';
             try {
                 const resposta = await fetch(`${API_URL}/api/produtos`);
                 const produtos = await resposta.json();
                 renderizarCards(produtos);
             } catch (erro) {
-                console.error('Erro:', erro);
-                document.getElementById('grid-produtos').innerHTML = '<p style="color: #ff5555;">Erro ao conectar com o servidor.</p>';
+                console.error(erro);
             }
+        }
+
+        async function fazerCadastro() {
+            const email = document.getElementById('login-email').value;
+            const senha = document.getElementById('login-senha').value;
+            if(!email || !senha) return alert('Preencha e-mail e senha para cadastrar!');
+
+            try {
+                const resposta = await fetch(`${API_URL}/api/cadastrar`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, senha })
+                });
+                const dados = await resposta.json();
+                if(dados.sucesso) {
+                    localStorage.setItem('usuarioId', dados.usuarioId);
+                    localStorage.setItem('userEmail', dados.email);
+                    atualizarEstadoLogin();
+                    alert('Conta criada com sucesso!');
+                } else {
+                    alert(dados.erro);
+                }
+            } catch (e) { alert('Erro na comunicação com o servidor.'); }
         }
 
         async function fazerLogin() {
@@ -115,7 +135,7 @@
                 } else {
                     alert(dados.erro);
                 }
-            } catch (e) { alert('Erro ao logar.'); }
+            } catch (e) { alert('Erro na comunicação com o servidor.'); }
         }
 
         function atualizarEstadoLogin() {
@@ -140,7 +160,7 @@
         async function adicionarDesejo(produtoId) {
             const usuarioId = localStorage.getItem('usuarioId');
             if(!usuarioId) {
-                alert('Você precisa fazer login para salvar itens na Lista de Desejos!');
+                alert('Faça login ou cadastre-se para salvar itens!');
                 return;
             }
             try {
@@ -151,16 +171,16 @@
                 });
                 const dados = await resposta.json();
                 if(dados.sucesso) alert('Produto salvo na sua Lista de Desejos!');
-            } catch(e) { alert('Erro ao salvar favorito.'); }
+            } catch(e) { alert('Erro ao salvar.'); }
         }
 
         async function carregarDesejos() {
             const usuarioId = localStorage.getItem('usuarioId');
             if(!usuarioId) {
-                alert('Faça login para ver sua Lista de Desejos.');
+                alert('Faça login primeiro.');
                 return;
             }
-            document.getElementById('titulo-secao').innerHTML = '<span>Sua Lista de Desejos</span>';
+            document.getElementById('titulo-secao').innerText = 'Sua Lista de Desejos';
             try {
                 const resposta = await fetch(`${API_URL}/api/desejos/${usuarioId}`);
                 const produtos = await resposta.json();
@@ -171,26 +191,24 @@
         function renderizarCards(produtos) {
             const container = document.getElementById('grid-produtos');
             container.innerHTML = ''; 
-
-            if (produtos.length === 0) {
+            if (!produtos || produtos.length === 0) {
                 container.innerHTML = '<p style="color: #7c7c8a;">Nenhum produto encontrado.</p>';
                 return;
             }
-
             produtos.forEach(produto => {
                 const card = document.createElement('div');
                 card.className = 'card';
                 card.innerHTML = `
                     <div>
                         <div class="card-img-container">
-                            <img src="${produto.imagem_url}" alt="${produto.nome}" onerror="this.onerror=null; this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/No-Image-Placeholder.svg/330px-No-Image-Placeholder.svg.png';">
+                            <img src="${produto.imagem_url || ''}" alt="${produto.nome || 'Produto'}" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/No-Image-Placeholder.svg/330px-No-Image-Placeholder.svg.png';">
                         </div>
-                        <h3 class="card-title" title="${produto.nome}">${produto.nome}</h3>
-                        <p class="card-price">R$ ${parseFloat(produto.preco).toFixed(2)}</p>
-                        <p class="card-vendor">Vendido por: <strong>${produto.origem}</strong></p>
+                        <h3 class="card-title" title="${produto.nome}">${produto.nome || 'Produto sem nome'}</h3>
+                        <p class="card-price">R$ ${parseFloat(produto.preco || 0).toFixed(2)}</p>
+                        <p class="card-vendor">Vendido por: <strong>${produto.origem || 'Desconhecida'}</strong></p>
                     </div>
                     <div class="card-buttons">
-                        <a href="${produto.link_afiliado}" target="_blank" class="btn-oferta">Ver Ofertas</a>
+                        <a href="${produto.link_afiliado || '#'}" target="_blank" class="btn-oferta">Ver Ofertas</a>
                         <button class="btn-desejo" onclick="adicionarDesejo(${produto.id})">❤️ Adicionar aos Desejos</button>
                     </div>
                 `;
