@@ -58,49 +58,5 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// Adicionar Desejo (Simplificado e direto)
-app.post('/api/desejos', async (req, res) => {
-    const { usuarioId, produtoId } = req.body;
-    try {
-        const pId = String(produtoId);
-        
-        // Remove duplicado se houver e insere limpo
-        await pool.query('DELETE FROM lista_desejos WHERE usuario_id = $1 AND produto_id = $2', [usuarioId, pId]);
-        await pool.query('INSERT INTO lista_desejos (usuario_id, produto_id) VALUES ($1, $2)', [usuarioId, pId]);
-        
-        res.json({ sucesso: true });
-    } catch (erro) {
-        console.error("Erro detalhado ao salvar desejo:", erro);
-        res.status(500).json({ erro: "Erro ao salvar favorito" });
-    }
-});
-
-// Buscar Desejos
-app.get('/api/desejos/:usuarioId', async (req, res) => {
-    const { usuarioId } = req.params;
-    try {
-        const query = `
-            SELECT DISTINCT p.* FROM produtos_catalogo p
-            JOIN lista_desejos d ON p.id::text = d.produto_id
-            WHERE d.usuario_id = $1
-        `;
-        const resultado = await pool.query(query, [usuarioId]);
-        res.json(resultado.rows);
-    } catch (erro) {
-        res.status(500).json({ erro: "Erro ao carregar desejos" });
-    }
-});
-
-// Remover Desejo
-app.delete('/api/desejos/:usuarioId/:produtoId', async (req, res) => {
-    const { usuarioId, produtoId } = req.params;
-    try {
-        await pool.query('DELETE FROM lista_desejos WHERE usuario_id = $1 AND produto_id = $2', [usuarioId, String(produtoId)]);
-        res.json({ sucesso: true });
-    } catch (erro) {
-        res.status(500).json({ erro: "Erro ao remover favorito" });
-    }
-});
-
 const PORTA = process.env.PORT || 3000;
 app.listen(PORTA, () => console.log(`Rodando na porta ${PORTA}`));

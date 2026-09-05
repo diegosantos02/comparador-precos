@@ -1,0 +1,30 @@
+name: Ingestao Automatica do Catalogo Mercheap
+
+on:
+  schedule:
+    # Executa a cada 6 horas (00:00, 06:00, 12:00, 18:00 UTC)
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # Permite rodar manualmente com 1 clique pelo painel do GitHub
+
+jobs:
+  atualizar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Baixar codigo do repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Executar Ingestao Simetrica
+        env:
+          CONEXAO_NEON: ${{ secrets.CONEXAO_NEON }}
+          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+        run: node alimentarTudo.mjs

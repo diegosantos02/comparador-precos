@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.6",
+    "csv-parser": "^3.2.1",
     "express": "^5.2.1",
     "pg": "^8.23.0",
     "puppeteer": "^25.8.0"
