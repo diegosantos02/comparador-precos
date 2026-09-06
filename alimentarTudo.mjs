@@ -9,7 +9,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-const QUANTIDADE_POR_TERMO = 8;
+const QUANTIDADE_POR_TERMO = 4;
 
 const MATRIZ_BUSCA = [
   { termo: 'mouse gamer', categoria: 'Mouses' },
@@ -23,20 +23,6 @@ const MATRIZ_BUSCA = [
   { termo: 'raspberry pi 4', categoria: 'Raspberry & Maker' },
   { termo: 'sensor modulo arduino', categoria: 'Sensores & Maker' }
 ];
-
-// Pisos realistas para barrar peças avulsas de anúncios múltiplos (ex: fios, cases ou parafusos)
-const PISOS_CATEGORIA = {
-  'Mouses': 20.00,
-  'Teclados': 35.00,
-  'Headsets': 30.00,
-  'Monitores': 250.00,
-  'Placas de Vídeo': 500.00,
-  'Processadores': 200.00,
-  'ESP32 & Maker': 6.00,
-  'Arduino & Maker': 12.00,
-  'Raspberry & Maker': 40.00,
-  'Sensores & Maker': 1.20
-};
 
 function converterPreco(val) {
   if (val === null || val === undefined) return 0;
@@ -61,10 +47,117 @@ function converterPreco(val) {
   return 0;
 }
 
-// 1. Mercado Livre
+// Salva ou atualiza sem depender de chave UNIQUE no PostgreSQL
+async function persistirProduto(sku, nome, preco, categoria, origem, link, imagem) {
+  const existe = await pool.query(
+    `SELECT id FROM produtos_catalogo WHERE sku_interno = $1 AND origem = $2 LIMIT 1`,
+    [sku, origem]
+  );
+
+  if (existe.rows.length > 0) {
+    await pool.query(
+      `UPDATE produtos_catalogo SET preco = $1, nome = $2, imagem_url = $3 WHERE id = $4`,
+      [preco, nome, imagem, existe.rows[0].id]
+    );
+    return true;
+  } else {
+    await pool.query(
+      `INSERT INTO produtos_catalogo (sku_interno, nome, preco, categoria, origem, link_afiliado, imagem_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [sku, nome, preco, categoria, origem, link, imagem]
+    );
+    return true;
+  }
+}
+
+// Consulta de detalhe para buscar a variação principal ativa
+async function buscarPrecoDetalheAliExpress(itemId) {
+  const url = `https://aliexpress-datahub.p.rapidapi.com/item_detail_2?itemId=${itemId}`;
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'X-RapidAPI-Key': RAPIDAPI_KEY,
+        'X-RapidAPI-Host': 'aliexpress-datahub.p.rapidapi.com'
+      }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const item = data.result?.item || data.data?.item;
+    if (!item) return null;
+
+    const precoFinal = converterPreco(
+      item.sku?.def?.promotionPrice ||
+      item.sku?.def?.price ||
+      item.priceWrap?.targetSalePrice ||
+      item.priceWrap?.salePrice ||
+      item.price
+    );
+    return precoFinal > 0 ? precoFinal : null;
+  } catch {
+    return null;
+  }
+}
+
+// 1. AliExpress (com resolução de SKU via endpoint de detalhe)
+async function coletarAliExpress(itemMatriz) {
+  const { termo, categoria } = itemMatriz;
+  const url = `https://aliexpress-datahub.p.rapidapi.com/item_search_2?q=${encodeURIComponent(termo)}&page=1&sort=default`;
+
+  let salvos = 0;
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'X-RapidAPI-Key': RAPIDAPI_KEY,
+        'X-RapidAPI-Host': 'aliexpress-datahub.p.rapidapi.com'
+      }
+    });
+
+    if (!res.ok) return 0;
+    const dados = await res.json();
+    const lista = dados.result?.resultList || dados.data || [];
+
+    for (const raw of lista) {
+      if (salvos >= QUANTIDADE_POR_TERMO) break;
+      const item = raw.item || raw;
+      const itemId = String(item.itemId || item.id || '');
+      if (!itemId) continue;
+
+      let nome = item.title || item.name;
+      let link = item.itemUrl || item.url || '';
+      if (link && !link.startsWith('http')) link = `https:${link}`;
+      let imagem = item.image || item.pic || '';
+      if (imagem && !imagem.startsWith('http')) imagem = `https:${imagem}`;
+
+      // Consulta de detalhe para buscar a SKU principal selecionada
+      await new Promise((r) => setTimeout(r, 400));
+      let precoReal = await buscarPrecoDetalheAliExpress(itemId);
+
+      if (!precoReal) {
+        precoReal = converterPreco(
+          item.targetSalePrice ||
+          item.promotionPrice ||
+          item.sku?.def?.promotionPrice ||
+          item.price
+        );
+      }
+
+      if (nome && precoReal > 0 && link) {
+        await persistirProduto(itemId, nome, precoReal, categoria, 'AliExpress', link, imagem);
+        salvos++;
+      }
+    }
+  } catch (err) {
+    console.error(`Erro AliExpress [${termo}]:`, err.message);
+  }
+  return salvos;
+}
+
+// 2. Mercado Livre
 async function coletarMercadoLivre(itemMatriz) {
   const { termo, categoria } = itemMatriz;
-  const url = `https://mercado-libre4.p.rapidapi.com/search?country=BR&search=${encodeURIComponent(termo)}&offset=0&limit=20`;
+  const url = `https://mercado-libre4.p.rapidapi.com/search?country=BR&search=${encodeURIComponent(termo)}&offset=0&limit=15`;
 
   let salvos = 0;
   try {
@@ -90,77 +183,15 @@ async function coletarMercadoLivre(itemMatriz) {
       if (imagem.includes('http://')) imagem = imagem.replace('http://', 'https://');
       if (imagem.includes('-I.jpg')) imagem = imagem.replace('-I.jpg', '-O.jpg');
       const link = item.permalink || item.url || '';
+      const idItem = String(item.id || Math.random());
 
-      const piso = PISOS_CATEGORIA[categoria] || 2.00;
-      if (nome && preco >= piso && link) {
-        const idItem = String(item.id || Math.random());
-        const q = await pool.query(
-          `INSERT INTO produtos_catalogo (sku_interno, nome, preco, categoria, origem, link_afiliado, imagem_url)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
-           ON CONFLICT DO NOTHING`,
-          [idItem, nome, preco, categoria, 'Mercado Livre', link, imagem]
-        );
-        if (q.rowCount > 0) salvos++;
+      if (nome && preco > 0 && link) {
+        await persistirProduto(idItem, nome, preco, categoria, 'Mercado Livre', link, imagem);
+        salvos++;
       }
     }
   } catch (err) {
     console.error(`Erro ML [${termo}]:`, err.message);
-  }
-  return salvos;
-}
-
-// 2. AliExpress
-async function coletarAliExpress(itemMatriz) {
-  const { termo, categoria } = itemMatriz;
-  const url = `https://aliexpress-datahub.p.rapidapi.com/item_search_2?q=${encodeURIComponent(termo)}&page=1&sort=default`;
-
-  let salvos = 0;
-  try {
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'X-RapidAPI-Key': RAPIDAPI_KEY,
-        'X-RapidAPI-Host': 'aliexpress-datahub.p.rapidapi.com'
-      }
-    });
-
-    if (!res.ok) return 0;
-    const dados = await res.json();
-    const lista = dados.result?.resultList || dados.data || [];
-
-    for (const raw of lista) {
-      if (salvos >= QUANTIDADE_POR_TERMO) break;
-      const item = raw.item || raw;
-
-      const nome = item.title || item.name;
-      const precoFinal = converterPreco(
-        item.targetSalePrice ||
-        item.promotionPrice ||
-        item.salePrice ||
-        item.sku?.def?.promotionPrice ||
-        item.sku?.def?.price ||
-        item.price
-      );
-
-      let link = item.itemUrl || item.url || '';
-      if (link && !link.startsWith('http')) link = `https:${link}`;
-      let imagem = item.image || item.pic || '';
-      if (imagem && !imagem.startsWith('http')) imagem = `https:${imagem}`;
-
-      const piso = PISOS_CATEGORIA[categoria] || 2.00;
-      if (nome && precoFinal >= piso && link) {
-        const idProduto = String(item.itemId || item.id || Math.random());
-        const q = await pool.query(
-          `INSERT INTO produtos_catalogo (sku_interno, nome, preco, categoria, origem, link_afiliado, imagem_url)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
-           ON CONFLICT DO NOTHING`,
-          [idProduto, nome, precoFinal, categoria, 'AliExpress', link, imagem]
-        );
-        if (q.rowCount > 0) salvos++;
-      }
-    }
-  } catch (err) {
-    console.error(`Erro AliExpress [${termo}]:`, err.message);
   }
   return salvos;
 }
@@ -194,17 +225,11 @@ async function coletarEbay(itemMatriz) {
       const link = item.url || item.link || item.itemUrl || '';
       let imagem = item.image || item.thumbnail || item.imageUrl || '';
       if (imagem.startsWith('http://')) imagem = imagem.replace('http://', 'https://');
+      const idItem = String(item.id || item.itemId || item.epid || Math.random());
 
-      const piso = PISOS_CATEGORIA[categoria] || 2.00;
-      if (nome && precoBrl >= piso && link) {
-        const idItem = String(item.id || item.itemId || item.epid || Math.random());
-        const q = await pool.query(
-          `INSERT INTO produtos_catalogo (sku_interno, nome, preco, categoria, origem, link_afiliado, imagem_url)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
-           ON CONFLICT DO NOTHING`,
-          [idItem, nome, precoBrl, categoria, 'eBay', link, imagem]
-        );
-        if (q.rowCount > 0) salvos++;
+      if (nome && precoBrl > 0 && link) {
+        await persistirProduto(idItem, nome, precoBrl, categoria, 'eBay', link, imagem);
+        salvos++;
       }
     }
   } catch (err) {
@@ -214,32 +239,32 @@ async function coletarEbay(itemMatriz) {
 }
 
 async function rodarIngestaoSincronizada() {
-  console.log("=== SINCRONIZANDO CATÁLOGO MERCHEAP ===");
+  console.log("=== SINCRONIZANDO COM RESOLUÇÃO DE SKU REAL ===");
   let totais = { 'Mercado Livre': 0, 'AliExpress': 0, 'eBay': 0 };
 
   for (const item of MATRIZ_BUSCA) {
-    console.log(`\nProcessando categoria: ${item.categoria} ("${item.termo}")...`);
+    console.log(`\nProcessando: ${item.categoria} ("${item.termo}")...`);
 
     const qML = await coletarMercadoLivre(item);
     totais['Mercado Livre'] += qML;
-    console.log(`  - Mercado Livre: +${qML} inseridos`);
+    console.log(`  - Mercado Livre: +${qML} processados`);
 
     const qAli = await coletarAliExpress(item);
     totais['AliExpress'] += qAli;
-    console.log(`  - AliExpress:    +${qAli} inseridos`);
+    console.log(`  - AliExpress:    +${qAli} processados com SKU real`);
 
     const qEbay = await coletarEbay(item);
     totais['eBay'] += qEbay;
-    console.log(`  - eBay (BRL):    +${qEbay} inseridos`);
+    console.log(`  - eBay (BRL):    +${qEbay} processados`);
 
-    await new Promise((r) => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 800));
   }
 
   console.log("\n=========================================");
-  console.log("CARGA FINALIZADA!");
-  console.log(`Mercado Livre : +${totais['Mercado Livre']}`);
-  console.log(`AliExpress    : +${totais['AliExpress']}`);
-  console.log(`eBay          : +${totais['eBay']}`);
+  console.log("SINCRONIZAÇÃO COMPLETA!");
+  console.log(`Mercado Livre : ${totais['Mercado Livre']}`);
+  console.log(`AliExpress    : ${totais['AliExpress']}`);
+  console.log(`eBay          : ${totais['eBay']}`);
   console.log("=========================================");
 
   await pool.end();
