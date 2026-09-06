@@ -9,7 +9,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-const QUANTIDADE_POR_TERMO = 10;
+const QUANTIDADE_POR_TERMO = 8;
 
 const MATRIZ_BUSCA = [
   { termo: 'mouse gamer', categoria: 'Mouses' },
@@ -23,6 +23,20 @@ const MATRIZ_BUSCA = [
   { termo: 'raspberry pi 4', categoria: 'Raspberry & Maker' },
   { termo: 'sensor modulo arduino', categoria: 'Sensores & Maker' }
 ];
+
+// Pisos realistas para barrar peças avulsas de anúncios múltiplos (ex: fios, cases ou parafusos)
+const PISOS_CATEGORIA = {
+  'Mouses': 20.00,
+  'Teclados': 35.00,
+  'Headsets': 30.00,
+  'Monitores': 250.00,
+  'Placas de Vídeo': 500.00,
+  'Processadores': 200.00,
+  'ESP32 & Maker': 6.00,
+  'Arduino & Maker': 12.00,
+  'Raspberry & Maker': 40.00,
+  'Sensores & Maker': 1.20
+};
 
 function converterPreco(val) {
   if (val === null || val === undefined) return 0;
@@ -50,7 +64,7 @@ function converterPreco(val) {
 // 1. Mercado Livre
 async function coletarMercadoLivre(itemMatriz) {
   const { termo, categoria } = itemMatriz;
-  const url = `https://mercado-libre4.p.rapidapi.com/search?country=BR&search=${encodeURIComponent(termo)}&offset=0&limit=25`;
+  const url = `https://mercado-libre4.p.rapidapi.com/search?country=BR&search=${encodeURIComponent(termo)}&offset=0&limit=20`;
 
   let salvos = 0;
   try {
@@ -77,10 +91,8 @@ async function coletarMercadoLivre(itemMatriz) {
       if (imagem.includes('-I.jpg')) imagem = imagem.replace('-I.jpg', '-O.jpg');
       const link = item.permalink || item.url || '';
 
-      const categoriasHardware = ['Mouses', 'Teclados', 'Headsets', 'Monitores', 'Placas de Vídeo', 'Processadores'];
-      const precoValido = categoriasHardware.includes(categoria) ? preco >= 10.00 : preco >= 1.00;
-
-      if (nome && precoValido && link) {
+      const piso = PISOS_CATEGORIA[categoria] || 2.00;
+      if (nome && preco >= piso && link) {
         const idItem = String(item.id || Math.random());
         const q = await pool.query(
           `INSERT INTO produtos_catalogo (sku_interno, nome, preco, categoria, origem, link_afiliado, imagem_url)
@@ -135,10 +147,8 @@ async function coletarAliExpress(itemMatriz) {
       let imagem = item.image || item.pic || '';
       if (imagem && !imagem.startsWith('http')) imagem = `https:${imagem}`;
 
-      const categoriasHardware = ['Mouses', 'Teclados', 'Headsets', 'Monitores', 'Placas de Vídeo', 'Processadores'];
-      const precoValido = categoriasHardware.includes(categoria) ? precoFinal >= 10.00 : precoFinal >= 1.00;
-
-      if (nome && precoValido && link) {
+      const piso = PISOS_CATEGORIA[categoria] || 2.00;
+      if (nome && precoFinal >= piso && link) {
         const idProduto = String(item.itemId || item.id || Math.random());
         const q = await pool.query(
           `INSERT INTO produtos_catalogo (sku_interno, nome, preco, categoria, origem, link_afiliado, imagem_url)
@@ -185,10 +195,8 @@ async function coletarEbay(itemMatriz) {
       let imagem = item.image || item.thumbnail || item.imageUrl || '';
       if (imagem.startsWith('http://')) imagem = imagem.replace('http://', 'https://');
 
-      const categoriasHardware = ['Mouses', 'Teclados', 'Headsets', 'Monitores', 'Placas de Vídeo', 'Processadores'];
-      const precoValido = categoriasHardware.includes(categoria) ? precoBrl >= 10.00 : precoBrl >= 1.00;
-
-      if (nome && precoValido && link) {
+      const piso = PISOS_CATEGORIA[categoria] || 2.00;
+      if (nome && precoBrl >= piso && link) {
         const idItem = String(item.id || item.itemId || item.epid || Math.random());
         const q = await pool.query(
           `INSERT INTO produtos_catalogo (sku_interno, nome, preco, categoria, origem, link_afiliado, imagem_url)
@@ -214,17 +222,17 @@ async function rodarIngestaoSincronizada() {
 
     const qML = await coletarMercadoLivre(item);
     totais['Mercado Livre'] += qML;
-    console.log(`  - Mercado Livre: +${qML} salvos`);
+    console.log(`  - Mercado Livre: +${qML} inseridos`);
 
     const qAli = await coletarAliExpress(item);
     totais['AliExpress'] += qAli;
-    console.log(`  - AliExpress:    +${qAli} salvos`);
+    console.log(`  - AliExpress:    +${qAli} inseridos`);
 
     const qEbay = await coletarEbay(item);
     totais['eBay'] += qEbay;
-    console.log(`  - eBay (BRL):    +${qEbay} salvos`);
+    console.log(`  - eBay (BRL):    +${qEbay} inseridos`);
 
-    await new Promise((r) => setTimeout(r, 1200));
+    await new Promise((r) => setTimeout(r, 1000));
   }
 
   console.log("\n=========================================");
