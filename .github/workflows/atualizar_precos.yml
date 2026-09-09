@@ -1,4 +1,4 @@
-name: Executar Scrapers Amazon e AliExpress
+name: Executar Scraper Amazon
 
 on:
   schedule:
@@ -28,9 +28,3 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           python crawler_amazon_autonomo.py
-
-      - name: Executar Scraper AliExpress
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: |
-          python crawler_aliexpress_scraping.py
