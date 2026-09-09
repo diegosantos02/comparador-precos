@@ -2,9 +2,8 @@ name: Executar Scrapers Amazon e AliExpress
 
 on:
   schedule:
-    # Executa a cada 6 horas automaticamente
     - cron: '0 */6 * * *'
-  workflow_dispatch: # Permite rodar manualmente com um clique na aba Actions
+  workflow_dispatch:
 
 jobs:
   scraping:
@@ -18,15 +17,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      - name: Instalar Google Chrome
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wget curl unzip libxi6 libgconf-2-4 libnss3
-          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/googlechrome-linux-keyring.gpg
-          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
-          sudo apt-get update
-          sudo apt-get install -y google-chrome-stable
 
       - name: Instalar dependências Python
         run: |
