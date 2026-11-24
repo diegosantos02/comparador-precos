@@ -1,4 +1,4 @@
-name: Executar Scraper Amazon Playwright
+name: Coleta Automatica Amazon
 
 on:
   schedule:
@@ -6,26 +6,25 @@ on:
   workflow_dispatch:
 
 jobs:
-  scraping:
+  coletar:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
-      - name: Baixar repositório
+      - name: Baixar repositorio
         uses: actions/checkout@v4
 
-      - name: Configurar Python
+      - name: Configurar Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Instalar dependências e Playwright
+      - name: Instalar Playwright e Chromium
         run: |
-          python -m pip install --upgrade pip
           pip install playwright psycopg2-binary
           playwright install --with-deps chromium
 
-      - name: Executar Scraper Amazon
+      - name: Rodar crawler da Amazon
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: |
-          python crawler_amazon_playwright.py
+        run: python3 -u crawler_amazon_playwright.py
